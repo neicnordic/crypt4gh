@@ -1,7 +1,25 @@
 package keys
 
-import "golang.org/x/crypto/curve25519"
+import (
+	"encoding/pem"
+	"golang.org/x/crypto/curve25519"
+	"io"
+	"io/ioutil"
+	"maze.io/x/crypto/x25519"
+)
 import "golang.org/x/crypto/blake2b"
+
+func ReadX25519PrivateKey(reader io.Reader) (*[32]byte, error) {
+	pemBytes, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	block, _ := pem.Decode(pemBytes)
+	keyBytes := block.Bytes
+	var key [32]byte
+	copy(key[:], keyBytes[len(keyBytes)-x25519.GroupElementLength:])
+	return &key, nil
+}
 
 func GenerateReaderSharedKey(privateKey [32]byte, publicKey [32]byte) (*[]byte, error) {
 	derivedPublicKey := derivePublicKey(privateKey)
