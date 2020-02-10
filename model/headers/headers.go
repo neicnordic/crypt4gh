@@ -1,11 +1,15 @@
 package headers
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"golang.org/x/crypto/chacha20poly1305"
 	"io"
 )
+
+import "../../keys"
 
 const MagicNumber string = "crypt4gh"
 const Version1 uint32 = 1
@@ -36,7 +40,7 @@ type Header struct {
 	headerPackets     []HeaderPacket
 }
 
-func NewHeader(reader io.Reader) (*Header, error) {
+func NewHeader(reader io.Reader, readerPrivateKey [32]byte) (*Header, error) {
 	header := Header{}
 	_, err := reader.Read(header.magicNumber[:])
 	if err != nil {
@@ -58,7 +62,7 @@ func NewHeader(reader io.Reader) (*Header, error) {
 	}
 	header.headerPackets = make([]HeaderPacket, 0)
 	for i := uint32(0); i < header.headerPacketCount; i++ {
-		headerPacket, err := NewHeaderPacket(reader)
+		headerPacket, err := NewHeaderPacket(reader, readerPrivateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +77,7 @@ type HeaderPacket struct {
 	encryptedHeaderPacket  EncryptedHeaderPacket
 }
 
-func NewHeaderPacket(reader io.Reader) (*HeaderPacket, error) {
+func NewHeaderPacket(reader io.Reader, readerPrivateKey [32]byte) (*HeaderPacket, error) {
 	var headerPacket HeaderPacket
 	err := binary.Read(reader, binary.LittleEndian, &headerPacket.packetLength)
 	if err != nil {
@@ -83,7 +87,12 @@ func NewHeaderPacket(reader io.Reader) (*HeaderPacket, error) {
 	if err != nil {
 		return nil, err
 	}
-	encryptedHeaderPacket, err := NewEncryptedHeaderPacket(reader)
+	encryptedPacketPayload := make([]byte, headerPacket.packetLength-4-4)
+	err = binary.Read(reader, binary.LittleEndian, &encryptedPacketPayload)
+	if err != nil {
+		return nil, err
+	}
+	encryptedHeaderPacket, err := NewEncryptedHeaderPacket(encryptedPacketPayload, headerPacket.headerEncryptionMethod, readerPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -91,39 +100,102 @@ func NewHeaderPacket(reader io.Reader) (*HeaderPacket, error) {
 	return &headerPacket, nil
 }
 
-type X25519ChaCha20IETFPoly1305HeaderPacket struct {
-	HeaderPacket
-	writerPublicKey [32]byte
-	nonce           [12]byte
-	mac             [16]byte
-}
-
 type EncryptedHeaderPacket interface {
 	GetPacketType() HeaderPacketType
 }
 
-func NewEncryptedHeaderPacket(reader io.Reader) (*EncryptedHeaderPacket, error) {
+func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, headerEncryptionMethod HeaderEncryptionMethod, readerPrivateKey [32]byte) (*EncryptedHeaderPacket, error) {
 	var encryptedHeaderPacket EncryptedHeaderPacket
-	encryptedHeaderPacket = DataEncryptionParametersEncryptedHeaderPacket{}
+	switch headerEncryptionMethod {
+	case X25519ChaCha20IETFPoly1305:
+		var writerPublicKeyBytes [32]byte
+		copy(writerPublicKeyBytes[:], encryptedPacketPayload[:chacha20poly1305.KeySize])
+		nonce := encryptedPacketPayload[chacha20poly1305.KeySize : chacha20poly1305.KeySize+chacha20poly1305.NonceSize]
+		encryptedPayload := encryptedPacketPayload[chacha20poly1305.KeySize+chacha20poly1305.NonceSize:]
+		sharedKey, err := keys.GenerateReaderSharedKey(readerPrivateKey, writerPublicKeyBytes)
+		if err != nil {
+			return nil, err
+		}
+		aead, err := chacha20poly1305.New(*sharedKey)
+		if err != nil {
+			return nil, err
+		}
+		decryptedPayload, err := aead.Open(nil, nonce, encryptedPayload, nil)
+		if err != nil {
+			return nil, err
+		}
+		decryptedPayloadReader := bytes.NewReader(decryptedPayload)
+		var packetType HeaderPacketType
+		err = binary.Read(decryptedPayloadReader, binary.LittleEndian, &packetType)
+		switch packetType {
+		case DataEncryptionParameters:
+			packet, err := NewDataEncryptionParametersEncryptedHeaderPacket(decryptedPayloadReader)
+			if err != nil {
+				return nil, err
+			}
+			encryptedHeaderPacket = *packet
+			break
+		case DataEditList:
+			packet, err := NewDataEditListEncryptedHeaderPacket(decryptedPayloadReader)
+			if err != nil {
+				return nil, err
+			}
+			encryptedHeaderPacket = *packet
+			break
+		}
+		break
+	}
+
 	return &encryptedHeaderPacket, nil
 }
 
 type DataEncryptionParametersEncryptedHeaderPacket struct {
-	dataEncryptionMethod DataEncryptionMethod
+	dataKey [32]byte
+}
+
+func NewDataEncryptionParametersEncryptedHeaderPacket(reader io.Reader) (*DataEncryptionParametersEncryptedHeaderPacket, error) {
+	dataEncryptionParametersEncryptedHeaderPacket := DataEncryptionParametersEncryptedHeaderPacket{}
+	var dataEncryptionMethod DataEncryptionMethod
+	err := binary.Read(reader, binary.LittleEndian, &dataEncryptionMethod)
+	if err != nil {
+		return nil, err
+	}
+	switch dataEncryptionMethod {
+	case ChaCha20IETFPoly1305:
+		err := binary.Read(reader, binary.LittleEndian, &dataEncryptionParametersEncryptedHeaderPacket.dataKey)
+		if err != nil {
+			return nil, err
+		}
+		break
+	}
+	return &dataEncryptionParametersEncryptedHeaderPacket, nil
 }
 
 func (depehp DataEncryptionParametersEncryptedHeaderPacket) GetPacketType() HeaderPacketType {
 	return DataEncryptionParameters
 }
 
-type ChaCha20IETFPoly1305DataEncryptionParametersEncryptedHeaderPacket struct {
-	DataEncryptionParametersEncryptedHeaderPacket
-	dataKey [32]byte
-}
-
 type DataEditListEncryptedHeaderPacket struct {
 	numberLengths uint32
 	lengths       []uint64
+}
+
+func NewDataEditListEncryptedHeaderPacket(reader io.Reader) (*DataEditListEncryptedHeaderPacket, error) {
+	dataEditListEncryptedHeaderPacket := DataEditListEncryptedHeaderPacket{}
+	err := binary.Read(reader, binary.LittleEndian, &dataEditListEncryptedHeaderPacket.numberLengths)
+	if err != nil {
+		return nil, err
+	}
+	dataEditListEncryptedHeaderPacket.lengths = make([]uint64, 0)
+	for i := uint32(0); i < dataEditListEncryptedHeaderPacket.numberLengths; i++ {
+		var length uint64
+		err := binary.Read(reader, binary.LittleEndian, &length)
+		if err != nil {
+			return nil, err
+		}
+		dataEditListEncryptedHeaderPacket.lengths = append(dataEditListEncryptedHeaderPacket.lengths, length)
+	}
+	return &dataEditListEncryptedHeaderPacket, nil
 }
 
 func (delehp DataEditListEncryptedHeaderPacket) GetPacketType() HeaderPacketType {
