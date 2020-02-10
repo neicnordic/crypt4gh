@@ -40,6 +40,23 @@ func NewCrypt4GHInternalReader(reader io.Reader, privateKey [32]byte) (*Crypt4GH
 	return &crypt4GHInternalReader, nil
 }
 
+func (c *Crypt4GHInternalReader) Read(p []byte) (n int, err error) {
+	readByte, err := c.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	p[0] = readByte
+	i := 1
+	for ; i < len(p); i++ {
+		readByte, err := c.ReadByte()
+		if err != nil {
+			return i, err
+		}
+		p[i] = readByte
+	}
+	return i, nil
+}
+
 func (c *Crypt4GHInternalReader) ReadByte() (byte, error) {
 	if len(c.buffer) == 0 || len(c.buffer) == c.bytesRead {
 		err := c.fillBuffer()
