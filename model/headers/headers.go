@@ -2,6 +2,7 @@ package headers
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -115,30 +116,11 @@ func (h Header) MarshalBinary() (data []byte, err error) {
 }
 
 type HeaderPacket struct {
+	WriterPrivateKey       [32]byte
+	ReaderPublicKey        [32]byte
 	PacketLength           uint32
 	HeaderEncryptionMethod HeaderEncryptionMethod
 	EncryptedHeaderPacket  EncryptedHeaderPacket
-}
-
-func (hp HeaderPacket) MarshalBinary() (data []byte, err error) {
-	buffer := bytes.Buffer{}
-	err = binary.Write(&buffer, binary.LittleEndian, hp.PacketLength)
-	if err != nil {
-		return nil, err
-	}
-	err = binary.Write(&buffer, binary.LittleEndian, hp.HeaderEncryptionMethod)
-	if err != nil {
-		return nil, err
-	}
-	marshalledEncryptedHeaderPacket, err := hp.EncryptedHeaderPacket.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	err = binary.Write(&buffer, binary.LittleEndian, marshalledEncryptedHeaderPacket)
-	if err != nil {
-		return nil, err
-	}
-	return buffer.Bytes(), nil
 }
 
 func NewHeaderPacket(reader io.Reader, readerPrivateKey [32]byte) (*HeaderPacket, error) {
@@ -162,6 +144,50 @@ func NewHeaderPacket(reader io.Reader, readerPrivateKey [32]byte) (*HeaderPacket
 	}
 	headerPacket.EncryptedHeaderPacket = *encryptedHeaderPacket
 	return &headerPacket, nil
+}
+
+func (hp HeaderPacket) MarshalBinary() (data []byte, err error) {
+	buffer := bytes.Buffer{}
+	err = binary.Write(&buffer, binary.LittleEndian, hp.PacketLength)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&buffer, binary.LittleEndian, hp.HeaderEncryptionMethod)
+	if err != nil {
+		return nil, err
+	}
+	writerPublicKey := keys.DerivePublicKey(hp.WriterPrivateKey)
+	err = binary.Write(&buffer, binary.LittleEndian, writerPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	var nonce [chacha20poly1305.NonceSize]byte
+	_, err = rand.Read(nonce[:])
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&buffer, binary.LittleEndian, nonce)
+	if err != nil {
+		return nil, err
+	}
+	marshalledEncryptedHeaderPacket, err := hp.EncryptedHeaderPacket.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	sharedKey, err := keys.GenerateWriterSharedKey(hp.WriterPrivateKey, hp.ReaderPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	aead, err := chacha20poly1305.New(*sharedKey)
+	if err != nil {
+		return nil, err
+	}
+	encryptedMarshalledEncryptedHeaderPacket := aead.Seal(nil, nonce[:], marshalledEncryptedHeaderPacket, nil)
+	err = binary.Write(&buffer, binary.LittleEndian, encryptedMarshalledEncryptedHeaderPacket)
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
 
 type EncryptedHeaderPacket interface {

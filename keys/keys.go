@@ -21,8 +21,14 @@ func ReadX25519PrivateKey(reader io.Reader) (*[32]byte, error) {
 	return &key, nil
 }
 
+func DerivePublicKey(privateKey [32]byte) [32]byte {
+	var derivedPublicKey [32]byte
+	curve25519.ScalarBaseMult(&derivedPublicKey, &privateKey)
+	return derivedPublicKey
+}
+
 func GenerateReaderSharedKey(privateKey [32]byte, publicKey [32]byte) (*[]byte, error) {
-	derivedPublicKey := derivePublicKey(privateKey)
+	derivedPublicKey := DerivePublicKey(privateKey)
 	diffieHellmanKey, err := curve25519.X25519(privateKey[:], publicKey[:])
 	if err != nil {
 		return nil, err
@@ -31,18 +37,12 @@ func GenerateReaderSharedKey(privateKey [32]byte, publicKey [32]byte) (*[]byte, 
 }
 
 func GenerateWriterSharedKey(privateKey [32]byte, publicKey [32]byte) (*[]byte, error) {
-	derivedPublicKey := derivePublicKey(privateKey)
+	derivedPublicKey := DerivePublicKey(privateKey)
 	diffieHellmanKey, err := curve25519.X25519(privateKey[:], publicKey[:])
 	if err != nil {
 		return nil, err
 	}
 	return generateSharedKey(diffieHellmanKey, publicKey, derivedPublicKey)
-}
-
-func derivePublicKey(privateKey [32]byte) [32]byte {
-	var derivedPublicKey [32]byte
-	curve25519.ScalarBaseMult(&derivedPublicKey, &privateKey)
-	return derivedPublicKey
 }
 
 func generateSharedKey(diffieHellmanKey []byte, readerPublicKey [32]byte, writerPublicKey [32]byte) (*[]byte, error) {
