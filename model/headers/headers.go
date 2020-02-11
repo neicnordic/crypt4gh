@@ -44,7 +44,7 @@ type Header struct {
 func (h Header) GetDataEncryptionParameterHeaderPackets() (*[]DataEncryptionParametersHeaderPacket, error) {
 	dataEncryptionParametersHeaderPackets := make([]DataEncryptionParametersHeaderPacket, 0)
 	for _, headerPacket := range h.HeaderPackets {
-		encryptedHeaderPacket := headerPacket.encryptedHeaderPacket
+		encryptedHeaderPacket := headerPacket.EncryptedHeaderPacket
 		packetType := encryptedHeaderPacket.GetPacketType()
 		if packetType == DataEncryptionParameters {
 			dataEncryptionParametersHeaderPackets = append(dataEncryptionParametersHeaderPackets, encryptedHeaderPacket.(DataEncryptionParametersHeaderPacket))
@@ -87,37 +87,86 @@ func NewHeader(reader io.Reader, readerPrivateKey [32]byte) (*Header, error) {
 	return &header, nil
 }
 
+func (h Header) MarshalBinary() (data []byte, err error) {
+	buffer := bytes.Buffer{}
+	err = binary.Write(&buffer, binary.LittleEndian, h.MagicNumber)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&buffer, binary.LittleEndian, h.Version)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&buffer, binary.LittleEndian, h.HeaderPacketCount)
+	if err != nil {
+		return nil, err
+	}
+	for _, headerPacket := range h.HeaderPackets {
+		marshalledHeaderPacket, err := headerPacket.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		err = binary.Write(&buffer, binary.LittleEndian, marshalledHeaderPacket)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return buffer.Bytes(), nil
+}
+
 type HeaderPacket struct {
-	packetLength           uint32
-	headerEncryptionMethod HeaderEncryptionMethod
-	encryptedHeaderPacket  EncryptedHeaderPacket
+	PacketLength           uint32
+	HeaderEncryptionMethod HeaderEncryptionMethod
+	EncryptedHeaderPacket  EncryptedHeaderPacket
+}
+
+func (hp HeaderPacket) MarshalBinary() (data []byte, err error) {
+	buffer := bytes.Buffer{}
+	err = binary.Write(&buffer, binary.LittleEndian, hp.PacketLength)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&buffer, binary.LittleEndian, hp.HeaderEncryptionMethod)
+	if err != nil {
+		return nil, err
+	}
+	marshalledEncryptedHeaderPacket, err := hp.EncryptedHeaderPacket.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&buffer, binary.LittleEndian, marshalledEncryptedHeaderPacket)
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
 
 func NewHeaderPacket(reader io.Reader, readerPrivateKey [32]byte) (*HeaderPacket, error) {
 	var headerPacket HeaderPacket
-	err := binary.Read(reader, binary.LittleEndian, &headerPacket.packetLength)
+	err := binary.Read(reader, binary.LittleEndian, &headerPacket.PacketLength)
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Read(reader, binary.LittleEndian, &headerPacket.headerEncryptionMethod)
+	err = binary.Read(reader, binary.LittleEndian, &headerPacket.HeaderEncryptionMethod)
 	if err != nil {
 		return nil, err
 	}
-	encryptedPacketPayload := make([]byte, headerPacket.packetLength-4-4)
+	encryptedPacketPayload := make([]byte, headerPacket.PacketLength-4-4)
 	err = binary.Read(reader, binary.LittleEndian, &encryptedPacketPayload)
 	if err != nil {
 		return nil, err
 	}
-	encryptedHeaderPacket, err := NewEncryptedHeaderPacket(encryptedPacketPayload, headerPacket.headerEncryptionMethod, readerPrivateKey)
+	encryptedHeaderPacket, err := NewEncryptedHeaderPacket(encryptedPacketPayload, headerPacket.HeaderEncryptionMethod, readerPrivateKey)
 	if err != nil {
 		return nil, err
 	}
-	headerPacket.encryptedHeaderPacket = *encryptedHeaderPacket
+	headerPacket.EncryptedHeaderPacket = *encryptedHeaderPacket
 	return &headerPacket, nil
 }
 
 type EncryptedHeaderPacket interface {
 	GetPacketType() HeaderPacketType
+	MarshalBinary() (data []byte, err error)
 }
 
 func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, headerEncryptionMethod HeaderEncryptionMethod, readerPrivateKey [32]byte) (*EncryptedHeaderPacket, error) {
@@ -165,20 +214,30 @@ func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, headerEncryptionMet
 	return &encryptedHeaderPacket, nil
 }
 
+type PacketType struct {
+	PacketType HeaderPacketType
+}
+
+func (pth PacketType) GetPacketType() HeaderPacketType {
+	return pth.PacketType
+}
+
 type DataEncryptionParametersHeaderPacket struct {
 	EncryptedSegmentSize int
+	PacketType
 	DataEncryptionMethod DataEncryptionMethod
 	DataKey              [32]byte
 }
 
 func NewDataEncryptionParametersHeaderPacket(reader io.Reader) (*DataEncryptionParametersHeaderPacket, error) {
-	dataEncryptionParametersHeaderPacket := DataEncryptionParametersHeaderPacket{EncryptedSegmentSize: chacha20poly1305.NonceSize + UnencryptedDataSegmentSize + 16}
+	dataEncryptionParametersHeaderPacket := DataEncryptionParametersHeaderPacket{PacketType: PacketType{DataEncryptionParameters}}
 	err := binary.Read(reader, binary.LittleEndian, &dataEncryptionParametersHeaderPacket.DataEncryptionMethod)
 	if err != nil {
 		return nil, err
 	}
 	switch dataEncryptionParametersHeaderPacket.DataEncryptionMethod {
 	case ChaCha20IETFPoly1305:
+		dataEncryptionParametersHeaderPacket.EncryptedSegmentSize = chacha20poly1305.NonceSize + UnencryptedDataSegmentSize + 16
 		err := binary.Read(reader, binary.LittleEndian, &dataEncryptionParametersHeaderPacket.DataKey)
 		if err != nil {
 			return nil, err
@@ -188,17 +247,31 @@ func NewDataEncryptionParametersHeaderPacket(reader io.Reader) (*DataEncryptionP
 	return &dataEncryptionParametersHeaderPacket, nil
 }
 
-func (dephp DataEncryptionParametersHeaderPacket) GetPacketType() HeaderPacketType {
-	return DataEncryptionParameters
+func (dephp DataEncryptionParametersHeaderPacket) MarshalBinary() (data []byte, err error) {
+	buffer := bytes.Buffer{}
+	err = binary.Write(&buffer, binary.LittleEndian, dephp.PacketType)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&buffer, binary.LittleEndian, dephp.DataEncryptionMethod)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&buffer, binary.LittleEndian, dephp.DataKey)
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
 
 type DataEditListHeaderPacket struct {
+	PacketType
 	NumberLengths uint32
 	Lengths       []uint64
 }
 
 func NewDataEditListHeaderPacket(reader io.Reader) (*DataEditListHeaderPacket, error) {
-	dataEditListHeaderPacket := DataEditListHeaderPacket{}
+	dataEditListHeaderPacket := DataEditListHeaderPacket{PacketType: PacketType{DataEditList}}
 	err := binary.Read(reader, binary.LittleEndian, &dataEditListHeaderPacket.NumberLengths)
 	if err != nil {
 		return nil, err
@@ -215,6 +288,19 @@ func NewDataEditListHeaderPacket(reader io.Reader) (*DataEditListHeaderPacket, e
 	return &dataEditListHeaderPacket, nil
 }
 
-func (delhp DataEditListHeaderPacket) GetPacketType() HeaderPacketType {
-	return DataEditList
+func (delhp DataEditListHeaderPacket) MarshalBinary() (data []byte, err error) {
+	buffer := bytes.Buffer{}
+	err = binary.Write(&buffer, binary.LittleEndian, delhp.PacketType)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&buffer, binary.LittleEndian, delhp.NumberLengths)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(&buffer, binary.LittleEndian, delhp.Lengths)
+	if err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
