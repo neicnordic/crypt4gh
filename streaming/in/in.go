@@ -118,7 +118,8 @@ func (c *crypt4GHInternalReader) fillBuffer() error {
 	if read == 0 {
 		c.buffer.Truncate(0)
 	} else {
-		segment, err := body.NewSegment(encryptedSegmentBytes[:read], c.dataEncryptionParametersHeaderPackets)
+		segment := body.Segment{DataEncryptionParametersHeaderPackets: c.dataEncryptionParametersHeaderPackets}
+		err := segment.UnmarshalBinary(encryptedSegmentBytes[:read])
 		if err != nil {
 			return err
 		}
