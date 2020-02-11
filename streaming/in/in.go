@@ -1,8 +1,8 @@
-package streaming
+package in
 
 import (
-	"../model/body"
-	"../model/headers"
+	"../../model/body"
+	"../../model/headers"
 	"bytes"
 	"container/list"
 	"errors"
@@ -12,16 +12,16 @@ import (
 type crypt4GHInternalReader struct {
 	reader io.Reader
 
-	header                               headers.Header
-	dataEncryptionParameterHeaderPackets []headers.DataEncryptionParametersHeaderPacket
-	encryptedSegmentSize                 int
-	lastDecryptedSegment                 int
-	buffer                               bytes.Buffer
+	header                                headers.Header
+	dataEncryptionParametersHeaderPackets []headers.DataEncryptionParametersHeaderPacket
+	encryptedSegmentSize                  int
+	lastDecryptedSegment                  int
+	buffer                                bytes.Buffer
 }
 
-func newCrypt4GHInternalReader(reader io.Reader, privateKey [32]byte) (*crypt4GHInternalReader, error) {
+func newCrypt4GHInternalReader(reader io.Reader, readerPrivateKey [32]byte) (*crypt4GHInternalReader, error) {
 	crypt4GHInternalReader := crypt4GHInternalReader{}
-	header, err := headers.NewHeader(reader, privateKey)
+	header, err := headers.NewHeader(reader, readerPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -29,9 +29,9 @@ func newCrypt4GHInternalReader(reader io.Reader, privateKey [32]byte) (*crypt4GH
 	if err != nil {
 		return nil, err
 	}
-	crypt4GHInternalReader.dataEncryptionParameterHeaderPackets = *dataEncryptionParameterHeaderPackets
-	firstDataEncryptionParametersHeader := crypt4GHInternalReader.dataEncryptionParameterHeaderPackets[0]
-	for _, dataEncryptionParametersHeader := range crypt4GHInternalReader.dataEncryptionParameterHeaderPackets {
+	crypt4GHInternalReader.dataEncryptionParametersHeaderPackets = *dataEncryptionParameterHeaderPackets
+	firstDataEncryptionParametersHeader := crypt4GHInternalReader.dataEncryptionParametersHeaderPackets[0]
+	for _, dataEncryptionParametersHeader := range crypt4GHInternalReader.dataEncryptionParametersHeaderPackets {
 		if dataEncryptionParametersHeader.GetPacketType() != firstDataEncryptionParametersHeader.GetPacketType() {
 			return nil, errors.New("different data encryption methods are not supported")
 		}
@@ -118,7 +118,7 @@ func (c *crypt4GHInternalReader) fillBuffer() error {
 	if read == 0 {
 		c.buffer.Truncate(0)
 	} else {
-		segment, err := body.NewSegment(encryptedSegmentBytes[:read], c.dataEncryptionParameterHeaderPackets)
+		segment, err := body.NewSegment(encryptedSegmentBytes[:read], c.dataEncryptionParametersHeaderPackets)
 		if err != nil {
 			return err
 		}
@@ -137,8 +137,8 @@ type Crypt4GHReader struct {
 	bytesRead       uint64
 }
 
-func NewCrypt4GHReader(reader io.Reader, privateKey [32]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHReader, error) {
-	internalReader, err := newCrypt4GHInternalReader(reader, privateKey)
+func NewCrypt4GHReader(reader io.Reader, readerPrivateKey [32]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHReader, error) {
+	internalReader, err := newCrypt4GHInternalReader(reader, readerPrivateKey)
 	if err != nil {
 		return nil, err
 	}
