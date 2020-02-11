@@ -193,24 +193,24 @@ func (dephp DataEncryptionParametersHeaderPacket) GetPacketType() HeaderPacketTy
 }
 
 type DataEditListHeaderPacket struct {
-	numberLengths uint32
-	lengths       []uint64
+	NumberLengths uint32
+	Lengths       []uint64
 }
 
 func NewDataEditListHeaderPacket(reader io.Reader) (*DataEditListHeaderPacket, error) {
 	dataEditListHeaderPacket := DataEditListHeaderPacket{}
-	err := binary.Read(reader, binary.LittleEndian, &dataEditListHeaderPacket.numberLengths)
+	err := binary.Read(reader, binary.LittleEndian, &dataEditListHeaderPacket.NumberLengths)
 	if err != nil {
 		return nil, err
 	}
-	dataEditListHeaderPacket.lengths = make([]uint64, 0)
-	for i := uint32(0); i < dataEditListHeaderPacket.numberLengths; i++ {
+	dataEditListHeaderPacket.Lengths = make([]uint64, 0)
+	for i := uint32(0); i < dataEditListHeaderPacket.NumberLengths; i++ {
 		var length uint64
 		err := binary.Read(reader, binary.LittleEndian, &length)
 		if err != nil {
 			return nil, err
 		}
-		dataEditListHeaderPacket.lengths = append(dataEditListHeaderPacket.lengths, length)
+		dataEditListHeaderPacket.Lengths = append(dataEditListHeaderPacket.Lengths, length)
 	}
 	return &dataEditListHeaderPacket, nil
 }
