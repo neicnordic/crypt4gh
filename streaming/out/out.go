@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/crypto/nacl/box"
 	"io"
 )
 
@@ -26,7 +27,7 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 	}
 	headerPackets := make([]headers.HeaderPacket, 0)
 	crypt4GHWriter.dataEncryptionParametersHeaderPacket = headers.DataEncryptionParametersHeaderPacket{
-		EncryptedSegmentSize: chacha20poly1305.NonceSize + headers.UnencryptedDataSegmentSize + 16,
+		EncryptedSegmentSize: chacha20poly1305.NonceSize + headers.UnencryptedDataSegmentSize + box.Overhead,
 		PacketType:           headers.PacketType{PacketType: headers.DataEncryptionParameters},
 		DataEncryptionMethod: headers.ChaCha20IETFPoly1305,
 		DataKey:              sharedKey,

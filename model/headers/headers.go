@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/crypto/nacl/box"
 	"io"
 )
 
@@ -275,7 +276,7 @@ func NewDataEncryptionParametersHeaderPacket(reader io.Reader) (*DataEncryptionP
 	}
 	switch dataEncryptionParametersHeaderPacket.DataEncryptionMethod {
 	case ChaCha20IETFPoly1305:
-		dataEncryptionParametersHeaderPacket.EncryptedSegmentSize = chacha20poly1305.NonceSize + UnencryptedDataSegmentSize + 16
+		dataEncryptionParametersHeaderPacket.EncryptedSegmentSize = chacha20poly1305.NonceSize + UnencryptedDataSegmentSize + box.Overhead
 		err := binary.Read(reader, binary.LittleEndian, &dataEncryptionParametersHeaderPacket.DataKey)
 		if err != nil {
 			return nil, err

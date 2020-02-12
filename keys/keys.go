@@ -16,9 +16,8 @@ func ReadX25519PrivateKey(reader io.Reader) (*[chacha20poly1305.KeySize]byte, er
 		return nil, err
 	}
 	block, _ := pem.Decode(pemBytes)
-	keyBytes := block.Bytes
 	var key [chacha20poly1305.KeySize]byte
-	copy(key[:], keyBytes[len(keyBytes)-x25519.GroupElementLength:])
+	copy(key[:], block.Bytes[len(block.Bytes)-x25519.GroupElementLength:])
 	return &key, nil
 }
 
