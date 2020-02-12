@@ -27,7 +27,8 @@ func (s Segment) MarshalBinary() (data []byte, err error) {
 		if err != nil {
 			return nil, err
 		}
-		return aead.Seal(nil, s.Nonce[:], s.UnencryptedData, nil), nil
+		encryptedData := aead.Seal(nil, s.Nonce[:], s.UnencryptedData, nil)
+		return append(s.Nonce[:], encryptedData...), nil
 	}
 	return nil, errors.New(fmt.Sprintf("unknown data encryption method: %v", dataEncryptionParametersHeaderPacket.DataEncryptionMethod))
 }
