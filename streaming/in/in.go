@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"container/list"
 	"errors"
+	"golang.org/x/crypto/chacha20poly1305"
 	"io"
 )
 
@@ -19,7 +20,7 @@ type crypt4GHInternalReader struct {
 	buffer                                bytes.Buffer
 }
 
-func newCrypt4GHInternalReader(reader io.Reader, readerPrivateKey [32]byte) (*crypt4GHInternalReader, error) {
+func newCrypt4GHInternalReader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte) (*crypt4GHInternalReader, error) {
 	crypt4GHInternalReader := crypt4GHInternalReader{}
 	header, err := headers.NewHeader(reader, readerPrivateKey)
 	if err != nil {
@@ -138,7 +139,7 @@ type Crypt4GHReader struct {
 	bytesRead       uint64
 }
 
-func NewCrypt4GHReader(reader io.Reader, readerPrivateKey [32]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHReader, error) {
+func NewCrypt4GHReader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHReader, error) {
 	internalReader, err := newCrypt4GHInternalReader(reader, readerPrivateKey)
 	if err != nil {
 		return nil, err

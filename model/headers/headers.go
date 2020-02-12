@@ -57,7 +57,7 @@ func (h Header) GetDataEncryptionParameterHeaderPackets() (*[]DataEncryptionPara
 	return &dataEncryptionParametersHeaderPackets, nil
 }
 
-func NewHeader(reader io.Reader, readerPrivateKey [32]byte) (*Header, error) {
+func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte) (*Header, error) {
 	header := Header{}
 	_, err := reader.Read(header.MagicNumber[:])
 	if err != nil {
@@ -116,14 +116,15 @@ func (h Header) MarshalBinary() (data []byte, err error) {
 }
 
 type HeaderPacket struct {
-	WriterPrivateKey       [32]byte
-	ReaderPublicKey        [32]byte
+	WriterPrivateKey       [chacha20poly1305.KeySize]byte
+	ReaderPublicKey        [chacha20poly1305.KeySize]byte
 	PacketLength           uint32
 	HeaderEncryptionMethod HeaderEncryptionMethod
+	Nonce                  [chacha20poly1305.NonceSize]byte
 	EncryptedHeaderPacket  EncryptedHeaderPacket
 }
 
-func NewHeaderPacket(reader io.Reader, readerPrivateKey [32]byte) (*HeaderPacket, error) {
+func NewHeaderPacket(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte) (*HeaderPacket, error) {
 	var headerPacket HeaderPacket
 	err := binary.Read(reader, binary.LittleEndian, &headerPacket.PacketLength)
 	if err != nil {
@@ -147,6 +148,35 @@ func NewHeaderPacket(reader io.Reader, readerPrivateKey [32]byte) (*HeaderPacket
 }
 
 func (hp HeaderPacket) MarshalBinary() (data []byte, err error) {
+	var encryptedMarshalledEncryptedHeaderPacket []byte
+	switch hp.HeaderEncryptionMethod {
+	case X25519ChaCha20IETFPoly1305:
+		_, err = rand.Read(hp.Nonce[:])
+		if err != nil {
+			return nil, err
+		}
+		marshalledEncryptedHeaderPacket, err := hp.EncryptedHeaderPacket.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		sharedKey, err := keys.GenerateWriterSharedKey(hp.WriterPrivateKey, hp.ReaderPublicKey)
+		if err != nil {
+			return nil, err
+		}
+		aead, err := chacha20poly1305.New(*sharedKey)
+		if err != nil {
+			return nil, err
+		}
+		encryptedMarshalledEncryptedHeaderPacket = aead.Seal(nil, hp.Nonce[:], marshalledEncryptedHeaderPacket, nil)
+		break
+	default:
+		return nil, errors.New(fmt.Sprintf("header encryption method not supported: %v", hp.HeaderEncryptionMethod))
+	}
+	hp.PacketLength = uint32(4 + // hp.PacketLength field size
+		4 + // hp.HeaderEncryptionMethod field size
+		chacha20poly1305.KeySize +
+		chacha20poly1305.NonceSize +
+		len(encryptedMarshalledEncryptedHeaderPacket))
 	buffer := bytes.Buffer{}
 	err = binary.Write(&buffer, binary.LittleEndian, hp.PacketLength)
 	if err != nil {
@@ -161,28 +191,10 @@ func (hp HeaderPacket) MarshalBinary() (data []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	var nonce [chacha20poly1305.NonceSize]byte
-	_, err = rand.Read(nonce[:])
+	err = binary.Write(&buffer, binary.LittleEndian, hp.Nonce)
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Write(&buffer, binary.LittleEndian, nonce)
-	if err != nil {
-		return nil, err
-	}
-	marshalledEncryptedHeaderPacket, err := hp.EncryptedHeaderPacket.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	sharedKey, err := keys.GenerateWriterSharedKey(hp.WriterPrivateKey, hp.ReaderPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	aead, err := chacha20poly1305.New(*sharedKey)
-	if err != nil {
-		return nil, err
-	}
-	encryptedMarshalledEncryptedHeaderPacket := aead.Seal(nil, nonce[:], marshalledEncryptedHeaderPacket, nil)
 	err = binary.Write(&buffer, binary.LittleEndian, encryptedMarshalledEncryptedHeaderPacket)
 	if err != nil {
 		return nil, err
@@ -195,11 +207,11 @@ type EncryptedHeaderPacket interface {
 	MarshalBinary() (data []byte, err error)
 }
 
-func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, headerEncryptionMethod HeaderEncryptionMethod, readerPrivateKey [32]byte) (*EncryptedHeaderPacket, error) {
+func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, headerEncryptionMethod HeaderEncryptionMethod, readerPrivateKey [chacha20poly1305.KeySize]byte) (*EncryptedHeaderPacket, error) {
 	var encryptedHeaderPacket EncryptedHeaderPacket
 	switch headerEncryptionMethod {
 	case X25519ChaCha20IETFPoly1305:
-		var writerPublicKeyBytes [32]byte
+		var writerPublicKeyBytes [chacha20poly1305.KeySize]byte
 		copy(writerPublicKeyBytes[:], encryptedPacketPayload[:chacha20poly1305.KeySize])
 		nonce := encryptedPacketPayload[chacha20poly1305.KeySize : chacha20poly1305.KeySize+chacha20poly1305.NonceSize]
 		encryptedPayload := encryptedPacketPayload[chacha20poly1305.KeySize+chacha20poly1305.NonceSize:]
@@ -252,7 +264,7 @@ type DataEncryptionParametersHeaderPacket struct {
 	EncryptedSegmentSize int
 	PacketType
 	DataEncryptionMethod DataEncryptionMethod
-	DataKey              [32]byte
+	DataKey              [chacha20poly1305.KeySize]byte
 }
 
 func NewDataEncryptionParametersHeaderPacket(reader io.Reader) (*DataEncryptionParametersHeaderPacket, error) {
