@@ -1,24 +1,116 @@
 package keys
 
 import (
+	"bytes"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
+	"errors"
+	"github.com/agl/ed25519/extra25519"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
+	"golang.org/x/crypto/ed25519"
+	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"
-	"maze.io/x/crypto/x25519"
 )
 import "golang.org/x/crypto/blake2b"
 
-func ReadX25519PrivateKey(reader io.Reader) (*[chacha20poly1305.KeySize]byte, error) {
-	pemBytes, err := ioutil.ReadAll(reader)
+const ed25519PrivateKeyFormat = "1.3.101.112"
+const x25519PrivateKeyFormat = "1.3.101.110"
+
+type openSSLPrivateKey struct {
+	Version   int
+	Algorithm pkix.AlgorithmIdentifier
+}
+
+func ReadPrivateKey(reader io.Reader, passPhrase []byte) (*[chacha20poly1305.KeySize]byte, error) {
+	allBytes, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
-	block, _ := pem.Decode(pemBytes)
-	var key [chacha20poly1305.KeySize]byte
-	copy(key[:], block.Bytes[len(block.Bytes)-x25519.GroupElementLength:])
-	return &key, nil
+
+	var keyBytes [chacha20poly1305.KeySize]byte
+
+	// Trying to read OpenSSH Ed25519 private key
+	var key interface{}
+	if passPhrase == nil {
+		key, err = ssh.ParseRawPrivateKey(allBytes)
+	} else {
+		key, err = ssh.ParseRawPrivateKeyWithPassphrase(allBytes, passPhrase)
+	}
+	if err == nil {
+		edPrivateKey := key.(*ed25519.PrivateKey)
+		var edKeyBytes [chacha20poly1305.KeySize * 2]byte
+		copy(edKeyBytes[:], *edPrivateKey)
+		extra25519.PrivateKeyToCurve25519(&keyBytes, &edKeyBytes)
+		return &keyBytes, nil
+	}
+
+	// Not OpenSSH private key, assuming OpenSSL private key, trying to figure out type (Ed25519 or X25519)
+	block, _ := pem.Decode(allBytes)
+
+	var openSSLPrivateKey openSSLPrivateKey
+	if _, err := asn1.Unmarshal(block.Bytes, &openSSLPrivateKey); err != nil {
+		return nil, err
+	}
+
+	// Trying to read OpenSSL Ed25519 private key and convert to X25519 private key
+	if openSSLPrivateKey.Algorithm.Algorithm.String() == ed25519PrivateKeyFormat {
+		var edKeyBytes [chacha20poly1305.KeySize * 2]byte
+		copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+		extra25519.PrivateKeyToCurve25519(&keyBytes, &edKeyBytes)
+		return &keyBytes, nil
+	}
+
+	// Trying to read OpenSSL X25519 private key
+	if openSSLPrivateKey.Algorithm.Algorithm.String() == x25519PrivateKeyFormat {
+		copy(keyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+		return &keyBytes, nil
+	}
+
+	return nil, errors.New("private key format not supported")
+}
+
+var ed25519PublicKeyFormat = [...]byte{48, 42, 48, 5, 6, 3, 43, 101, 112}
+var x25519PublicKeyFormat = [...]byte{48, 42, 48, 5, 6, 3, 43, 101, 110}
+
+func ReadPublicKey(reader io.Reader) (*[chacha20poly1305.KeySize]byte, error) {
+	allBytes, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	var keyBytes [chacha20poly1305.KeySize]byte
+
+	// Trying to read OpenSSH Ed25519 public key
+	key, _, _, _, err := ssh.ParseAuthorizedKey(allBytes)
+	if err == nil {
+		marshalledKey := key.Marshal()
+		var edKeyBytes [chacha20poly1305.KeySize]byte
+		copy(edKeyBytes[:], marshalledKey[len(marshalledKey)-chacha20poly1305.KeySize:])
+		extra25519.PublicKeyToCurve25519(&keyBytes, &edKeyBytes)
+		return &keyBytes, nil
+	}
+
+	// Not OpenSSH public key, assuming OpenSSL public key
+	block, _ := pem.Decode(allBytes)
+
+	// Trying to read OpenSSL Ed25519 public key and convert to X25519 public key
+	if bytes.Compare(block.Bytes[:9], ed25519PublicKeyFormat[:]) == 0 {
+		var edKeyBytes [chacha20poly1305.KeySize]byte
+		copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+		extra25519.PublicKeyToCurve25519(&keyBytes, &edKeyBytes)
+		return &keyBytes, nil
+	}
+
+	// Trying to read OpenSSL X25519 public key
+	if bytes.Compare(block.Bytes[:9], x25519PublicKeyFormat[:]) == 0 {
+		copy(keyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+		return &keyBytes, nil
+	}
+
+	return nil, errors.New("public key format not supported")
 }
 
 func DerivePublicKey(privateKey [chacha20poly1305.KeySize]byte) [chacha20poly1305.KeySize]byte {
