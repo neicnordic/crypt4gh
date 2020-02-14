@@ -10,7 +10,7 @@ import (
 
 type Segment struct {
 	DataEncryptionParametersHeaderPackets []headers.DataEncryptionParametersHeaderPacket
-	Nonce                                 [chacha20poly1305.NonceSize]byte
+	Nonce                                 *[chacha20poly1305.NonceSize]byte
 	UnencryptedData                       []byte
 }
 
@@ -19,9 +19,12 @@ func (s Segment) MarshalBinary() (data []byte, err error) {
 	switch dataEncryptionParametersHeaderPacket.DataEncryptionMethod {
 	case headers.ChaCha20IETFPoly1305:
 		dataKey := dataEncryptionParametersHeaderPacket.DataKey[:]
-		_, err = rand.Read(s.Nonce[:])
-		if err != nil {
-			return nil, err
+		if s.Nonce == nil {
+			s.Nonce = new([chacha20poly1305.NonceSize]byte)
+			_, err = rand.Read(s.Nonce[:])
+			if err != nil {
+				return nil, err
+			}
 		}
 		aead, err := chacha20poly1305.New(dataKey)
 		if err != nil {
@@ -42,6 +45,7 @@ func (s *Segment) UnmarshalBinary(encryptedSegment []byte) error {
 			if err != nil {
 				return err
 			}
+			s.Nonce = new([chacha20poly1305.NonceSize]byte)
 			copy(s.Nonce[:], encryptedSegment[:chacha20poly1305.NonceSize])
 			encryptedData := encryptedSegment[chacha20poly1305.NonceSize:]
 			decryptedSegment, err := aead.Open(nil, s.Nonce[:], encryptedData, nil)
