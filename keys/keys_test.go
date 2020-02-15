@@ -1,10 +1,22 @@
 package keys
 
 import (
+	"bytes"
 	"encoding/hex"
 	"os"
 	"testing"
 )
+
+func TestGenerateKeyPair(t *testing.T) {
+	publicKey, privateKey, err := GenerateKeyPair()
+	if err != nil {
+		t.Error(err)
+	}
+	derivedPublicKey := DerivePublicKey(privateKey)
+	if bytes.Compare(publicKey[:], derivedPublicKey[:]) != 0 {
+		t.Fail()
+	}
+}
 
 func TestReadOpenSSHEd25519PrivateKeyUnencrypted(t *testing.T) {
 	keyFile, err := os.Open("../test/ssh-ed25519.sec.pem")
@@ -113,7 +125,7 @@ func TestDerivePublicKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	publicKey := DerivePublicKey(*privateKey)
+	publicKey := DerivePublicKey(privateKey)
 	if hex.EncodeToString(publicKey[:]) != "e64dbe1ea253efce81b6e457881f90a03e2ee65b38a04776a75376955dfbce40" {
 		t.Fail()
 	}
@@ -136,7 +148,7 @@ func TestGenerateWriterSharedKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	sharedKey, err := GenerateWriterSharedKey(*privateKey, *publicKey)
+	sharedKey, err := GenerateWriterSharedKey(privateKey, publicKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -162,7 +174,7 @@ func TestGenerateReaderSharedKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	sharedKey, err := GenerateReaderSharedKey(*privateKey, *publicKey)
+	sharedKey, err := GenerateReaderSharedKey(privateKey, publicKey)
 	if err != nil {
 		t.Error(err)
 	}
