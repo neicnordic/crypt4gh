@@ -113,25 +113,23 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 	// Not OpenSSH public key, assuming OpenSSL public key
 	block, _ := pem.Decode(allBytes)
 	var openSSLPublicKey openSSLPublicKey
-	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPublicKey); err != nil {
-		return
+	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPublicKey); err == nil {
+		// Trying to read OpenSSL Ed25519 public key and convert to X25519 public key
+		if openSSLPublicKey.Algorithm.Algorithm.String() == ed25519Algorithm {
+			var edKeyBytes [chacha20poly1305.KeySize]byte
+			copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+			extra25519.PublicKeyToCurve25519(&publicKey, &edKeyBytes)
+			return
+		}
+		// Trying to read OpenSSL X25519 public key
+		if openSSLPublicKey.Algorithm.Algorithm.String() == x25519Algorithm {
+			copy(publicKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+			return
+		}
 	}
 
-	// Trying to read OpenSSL Ed25519 public key and convert to X25519 public key
-	if openSSLPublicKey.Algorithm.Algorithm.String() == ed25519Algorithm {
-		var edKeyBytes [chacha20poly1305.KeySize]byte
-		copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
-		extra25519.PublicKeyToCurve25519(&publicKey, &edKeyBytes)
-		return
-	}
-
-	// Trying to read OpenSSL X25519 public key
-	if openSSLPublicKey.Algorithm.Algorithm.String() == x25519Algorithm {
-		copy(publicKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
-		return
-	}
-
-	return publicKey, errors.New("public key format not supported")
+	copy(publicKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+	return publicKey, nil
 }
 
 func DerivePublicKey(privateKey [chacha20poly1305.KeySize]byte) (publicKey [chacha20poly1305.KeySize]byte) {

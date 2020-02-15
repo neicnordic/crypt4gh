@@ -18,6 +18,20 @@ func TestGenerateKeyPair(t *testing.T) {
 	}
 }
 
+func TestReadCrypt4GHX25519PublicKey(t *testing.T) {
+	keyFile, err := os.Open("../test/crypt4gh-x25519-enc.pub.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	publicKey, err := ReadPublicKey(keyFile)
+	if err != nil {
+		t.Error(err)
+	}
+	if hex.EncodeToString(publicKey[:]) != "cbaeec90614aa9837ed27fb53f4172c586bf9473d45a296837891daf1ec9dc10" {
+		t.Fail()
+	}
+}
+
 func TestReadOpenSSHEd25519PrivateKeyUnencrypted(t *testing.T) {
 	keyFile, err := os.Open("../test/ssh-ed25519.sec.pem")
 	if err != nil {
