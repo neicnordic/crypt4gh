@@ -1,8 +1,8 @@
-package out
+package streaming
 
 import (
-	"../../model/body"
-	"../../model/headers"
+	"../model/body"
+	"../model/headers"
 	"bytes"
 	"crypto/rand"
 	"golang.org/x/crypto/chacha20poly1305"

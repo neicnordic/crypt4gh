@@ -1,8 +1,8 @@
-package in
+package streaming
 
 import (
-	"../../model/body"
-	"../../model/headers"
+	"../model/body"
+	"../model/headers"
 	"bytes"
 	"container/list"
 	"errors"
