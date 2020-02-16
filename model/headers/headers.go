@@ -43,21 +43,6 @@ type Header struct {
 	HeaderPackets     []HeaderPacket
 }
 
-func (h Header) GetDataEncryptionParameterHeaderPackets() (*[]DataEncryptionParametersHeaderPacket, error) {
-	dataEncryptionParametersHeaderPackets := make([]DataEncryptionParametersHeaderPacket, 0)
-	for _, headerPacket := range h.HeaderPackets {
-		encryptedHeaderPacket := headerPacket.EncryptedHeaderPacket
-		packetType := encryptedHeaderPacket.GetPacketType()
-		if packetType == DataEncryptionParameters {
-			dataEncryptionParametersHeaderPackets = append(dataEncryptionParametersHeaderPackets, encryptedHeaderPacket.(DataEncryptionParametersHeaderPacket))
-		}
-	}
-	if len(dataEncryptionParametersHeaderPackets) == 0 {
-		return nil, errors.New("data encryption parameters not found in the header")
-	}
-	return &dataEncryptionParametersHeaderPackets, nil
-}
-
 func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte) (*Header, error) {
 	header := Header{}
 	_, err := reader.Read(header.MagicNumber[:])
@@ -87,6 +72,21 @@ func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte
 		header.HeaderPackets = append(header.HeaderPackets, *headerPacket)
 	}
 	return &header, nil
+}
+
+func (h Header) GetDataEncryptionParameterHeaderPackets() (*[]DataEncryptionParametersHeaderPacket, error) {
+	dataEncryptionParametersHeaderPackets := make([]DataEncryptionParametersHeaderPacket, 0)
+	for _, headerPacket := range h.HeaderPackets {
+		encryptedHeaderPacket := headerPacket.EncryptedHeaderPacket
+		packetType := encryptedHeaderPacket.GetPacketType()
+		if packetType == DataEncryptionParameters {
+			dataEncryptionParametersHeaderPackets = append(dataEncryptionParametersHeaderPackets, encryptedHeaderPacket.(DataEncryptionParametersHeaderPacket))
+		}
+	}
+	if len(dataEncryptionParametersHeaderPackets) == 0 {
+		return nil, errors.New("data encryption parameters not found in the header")
+	}
+	return &dataEncryptionParametersHeaderPackets, nil
 }
 
 func (h Header) MarshalBinary() (data []byte, err error) {
@@ -121,7 +121,7 @@ type HeaderPacket struct {
 	ReaderPublicKey        [chacha20poly1305.KeySize]byte
 	PacketLength           uint32
 	HeaderEncryptionMethod HeaderEncryptionMethod
-	Nonce                  [chacha20poly1305.NonceSize]byte
+	Nonce                  *[chacha20poly1305.NonceSize]byte
 	EncryptedHeaderPacket  EncryptedHeaderPacket
 }
 
@@ -152,10 +152,14 @@ func (hp HeaderPacket) MarshalBinary() (data []byte, err error) {
 	var encryptedMarshalledEncryptedHeaderPacket []byte
 	switch hp.HeaderEncryptionMethod {
 	case X25519ChaCha20IETFPoly1305:
-		_, err = rand.Read(hp.Nonce[:])
-		if err != nil {
-			return nil, err
+		if hp.Nonce == nil {
+			hp.Nonce = new([chacha20poly1305.NonceSize]byte)
+			_, err = rand.Read(hp.Nonce[:])
+			if err != nil {
+				return nil, err
+			}
 		}
+
 		marshalledEncryptedHeaderPacket, err := hp.EncryptedHeaderPacket.MarshalBinary()
 		if err != nil {
 			return nil, err
