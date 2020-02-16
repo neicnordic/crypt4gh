@@ -11,7 +11,7 @@ import (
 var KDFS = map[string]KDF{
 	"scrypt":             sCrypt{},
 	"bcrypt":             bCrypt{},
-	"pbkdf2_hmac_sha256": sCrypt{},
+	"pbkdf2_hmac_sha256": pbkdf2sha512{},
 }
 
 type KDF interface {
