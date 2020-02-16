@@ -25,7 +25,11 @@ const (
 	x25519Algorithm  = "1.3.101.110"
 )
 
-const magic = "c4gh-v1"
+const (
+	magic               = "c4gh-v1"
+	none                = "none"
+	supportedCipherName = "chacha20_poly1305"
+)
 
 func GenerateKeyPair() (publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte, err error) {
 	edPublicKey, edPrivateKey, err := ed25519.GenerateKey(nil)
@@ -154,14 +158,14 @@ func readCrypt4GHPrivateKey(pemBytes []byte, passPhrase []byte) (privateKey [cha
 	if err != nil {
 		return
 	}
-	if string(kdfName) == "none" {
-		if string(ciphername) != "none" {
+	if string(kdfName) == none {
+		if string(ciphername) != none {
 			return privateKey, errors.New("invalid private key: KDF is 'none', but cipher is not 'none'")
 		}
 		copy(privateKey[:], payload)
 		return
 	}
-	if string(ciphername) != "chacha20_poly1305" {
+	if string(ciphername) != supportedCipherName {
 		return privateKey, errors.New(fmt.Sprintf("unsupported key encryption: %v", string(ciphername)))
 	}
 	var derivedKey []byte
