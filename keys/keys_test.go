@@ -18,6 +18,20 @@ func TestGenerateKeyPair(t *testing.T) {
 	}
 }
 
+func TestReadOpenCrypt4GHX25519PrivateKeyEncrypted(t *testing.T) {
+	keyFile, err := os.Open("../test/crypt4gh-x25519-enc.sec.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	privateKey, err := ReadPrivateKey(keyFile, []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	if hex.EncodeToString(privateKey[:]) != "23917aa32d70294429f50899a0825c2ffdc07f98197dfc8195d6ea942a1914eb" {
+		t.Fail()
+	}
+}
+
 func TestReadCrypt4GHX25519PublicKey(t *testing.T) {
 	keyFile, err := os.Open("../test/crypt4gh-x25519-enc.pub.pem")
 	if err != nil {

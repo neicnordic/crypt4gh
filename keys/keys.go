@@ -1,10 +1,14 @@
 package keys
 
 import (
+	"bytes"
+	"crypto/cipher"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/binary"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"github.com/agl/ed25519/extra25519"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
@@ -14,11 +18,14 @@ import (
 	"io/ioutil"
 )
 import "golang.org/x/crypto/blake2b"
+import "../kdf"
 
 const (
 	ed25519Algorithm = "1.3.101.112"
 	x25519Algorithm  = "1.3.101.110"
 )
+
+const magic = "c4gh-v1"
 
 func GenerateKeyPair() (publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte, err error) {
 	edPublicKey, edPrivateKey, err := ed25519.GenerateKey(nil)
@@ -68,25 +75,112 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 	block, _ := pem.Decode(allBytes)
 
 	var openSSLPrivateKey openSSLPrivateKey
-	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPrivateKey); err != nil {
-		return
+	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPrivateKey); err == nil {
+		// Trying to read OpenSSL Ed25519 private key and convert to X25519 private key
+		if openSSLPrivateKey.Algorithm.Algorithm.String() == ed25519Algorithm {
+			var edKeyBytes [chacha20poly1305.KeySize * 2]byte
+			copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+			extra25519.PrivateKeyToCurve25519(&privateKey, &edKeyBytes)
+			return
+		}
+
+		// Trying to read OpenSSL X25519 private key
+		if openSSLPrivateKey.Algorithm.Algorithm.String() == x25519Algorithm {
+			copy(privateKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+			return
+		}
 	}
 
-	// Trying to read OpenSSL Ed25519 private key and convert to X25519 private key
-	if openSSLPrivateKey.Algorithm.Algorithm.String() == ed25519Algorithm {
-		var edKeyBytes [chacha20poly1305.KeySize * 2]byte
-		copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
-		extra25519.PrivateKeyToCurve25519(&privateKey, &edKeyBytes)
-		return
-	}
-
-	// Trying to read OpenSSL X25519 private key
-	if openSSLPrivateKey.Algorithm.Algorithm.String() == x25519Algorithm {
-		copy(privateKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
-		return
+	// Interpreting bytes as Crypt4GH private key bytes (https://crypt4gh.readthedocs.io/en/latest/keys.html)
+	if string(block.Bytes[:7]) == magic {
+		return readCrypt4GHPrivateKey(block.Bytes, passPhrase)
 	}
 
 	return privateKey, errors.New("private key format not supported")
+}
+
+func readCrypt4GHPrivateKey(pemBytes []byte, passPhrase []byte) (privateKey [chacha20poly1305.KeySize]byte, err error) {
+	buf := bytes.Buffer{}
+	buf.Write(pemBytes[len(magic):])
+	var length uint16
+	err = binary.Read(&buf, binary.BigEndian, &length)
+	if err != nil {
+		return
+	}
+	kdfName := make([]byte, length)
+	err = binary.Read(&buf, binary.BigEndian, &kdfName)
+	if err != nil {
+		return
+	}
+	var rounds uint32
+	var salt []byte
+	kdfunction, ok := kdf.KDFS[string(kdfName)]
+	if !ok {
+		return privateKey, errors.New(fmt.Sprintf("KDF %v not supported", string(kdfName)))
+	}
+	if string(kdfName) != "none" {
+		if passPhrase == nil {
+			return privateKey, errors.New("private key is password-protected, need a password for decryption")
+		}
+		err = binary.Read(&buf, binary.BigEndian, &length)
+		if err != nil {
+			return
+		}
+		err = binary.Read(&buf, binary.BigEndian, &rounds)
+		if err != nil {
+			return
+		}
+		salt = make([]byte, length-4)
+		err = binary.Read(&buf, binary.BigEndian, &salt)
+		if err != nil {
+			return
+		}
+	}
+	err = binary.Read(&buf, binary.BigEndian, &length)
+	if err != nil {
+		return
+	}
+	ciphername := make([]byte, length)
+	err = binary.Read(&buf, binary.BigEndian, &ciphername)
+	if err != nil {
+		return
+	}
+	err = binary.Read(&buf, binary.BigEndian, &length)
+	if err != nil {
+		return
+	}
+	payload := make([]byte, length)
+	err = binary.Read(&buf, binary.BigEndian, &payload)
+	if err != nil {
+		return
+	}
+	if string(kdfName) == "none" {
+		if string(ciphername) != "none" {
+			return privateKey, errors.New("invalid private key: KDF is 'none', but cipher is not 'none'")
+		}
+		copy(privateKey[:], payload)
+		return
+	}
+	if string(ciphername) != "chacha20_poly1305" {
+		return privateKey, errors.New(fmt.Sprintf("unsupported key encryption: %v", string(ciphername)))
+	}
+	var derivedKey []byte
+	derivedKey, err = kdfunction.Derive(int(rounds), passPhrase, salt)
+	if err != nil {
+		return
+	}
+	var aead cipher.AEAD
+	aead, err = chacha20poly1305.New(derivedKey)
+	if err != nil {
+		return
+	}
+	var decryptedPrivateKey []byte
+	decryptedPrivateKey, err = aead.Open(nil, payload[:chacha20poly1305.NonceSize], payload[chacha20poly1305.NonceSize:], nil)
+	if err != nil {
+		return privateKey, err
+	}
+	copy(privateKey[:], decryptedPrivateKey)
+	return
 }
 
 type openSSLPublicKey struct {
@@ -128,6 +222,7 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 		}
 	}
 
+	// Interpreting bytes as Crypt4GH public key bytes (X25519)
 	copy(publicKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
 	return publicKey, nil
 }

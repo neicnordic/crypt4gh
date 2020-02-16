@@ -8,6 +8,12 @@ import (
 	"golang.org/x/crypto/scrypt"
 )
 
+var KDFS = map[string]KDF{
+	"scrypt":             sCrypt{},
+	"bcrypt":             bCrypt{},
+	"pbkdf2_hmac_sha256": sCrypt{},
+}
+
 type KDF interface {
 	Derive(rounds int, password []byte, salt []byte) (derivedKey []byte, err error)
 }
