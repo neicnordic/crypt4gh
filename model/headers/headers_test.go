@@ -32,7 +32,7 @@ func TestHeaderMarshalling(t *testing.T) {
 	header := Header{
 		MagicNumber:       magic,
 		Version:           1,
-		HeaderPacketCount: 1,
+		HeaderPacketCount: 2,
 		HeaderPackets: []HeaderPacket{{
 			WriterPrivateKey:       writerPrivateKey,
 			ReaderPublicKey:        readerPublicKey,
@@ -46,19 +46,31 @@ func TestHeaderMarshalling(t *testing.T) {
 				DataKey:              [32]byte{},
 			},
 		},
+			{
+				WriterPrivateKey:       writerPrivateKey,
+				ReaderPublicKey:        readerPublicKey,
+				PacketLength:           10,
+				HeaderEncryptionMethod: X25519ChaCha20IETFPoly1305,
+				Nonce:                  &nonce,
+				EncryptedHeaderPacket: DataEditListHeaderPacket{
+					PacketType:    PacketType{DataEditList},
+					NumberLengths: 3,
+					Lengths:       []uint64{1, 2, 3},
+				},
+			},
 		},
 	}
 	marshalledHeader, err := header.MarshalBinary()
 	if err != nil {
 		t.Error(err)
 	}
-	if hex.EncodeToString(marshalledHeader) != "637279707434676801000000010000006c000000000000005ee4b32a4b0fb53dc04dcb02aea9d258afd07736e13522ccaaf4077e643c8d1b0102030405060708090a0b0c8f5854ea6eceff229d474a1f35af0c7b9813ccc1ff370a56a630018203f102d99e83bd6e6cad47cc6d8185d1fa9ea800aedad79f47042ca3" {
+	if hex.EncodeToString(marshalledHeader) != "637279707434676801000000020000006c000000000000005ee4b32a4b0fb53dc04dcb02aea9d258afd07736e13522ccaaf4077e643c8d1b0102030405060708090a0b0c8f5854ea6eceff229d474a1f35af0c7b9813ccc1ff370a56a630018203f102d99e83bd6e6cad47cc6d8185d1fa9ea800aedad79f47042ca364000000000000005ee4b32a4b0fb53dc04dcb02aea9d258afd07736e13522ccaaf4077e643c8d1b0102030405060708090a0b0c8e5854ea6dceff229c474a1f35af0c7b9a13ccc1ff370a56a530018203f102d9bb97386e42d0695f862312bd04206bb6" {
 		t.Fail()
 	}
 }
 
 func TestNewHeader(t *testing.T) {
-	decodedHeader, err := hex.DecodeString("637279707434676801000000010000006c000000000000005ee4b32a4b0fb53dc04dcb02aea9d258afd07736e13522ccaaf4077e643c8d1b0102030405060708090a0b0c8f5854ea6eceff229d474a1f35af0c7b9813ccc1ff370a56a630018203f102d99e83bd6e6cad47cc6d8185d1fa9ea800aedad79f47042ca3")
+	decodedHeader, err := hex.DecodeString("637279707434676801000000020000006c000000000000005ee4b32a4b0fb53dc04dcb02aea9d258afd07736e13522ccaaf4077e643c8d1b0102030405060708090a0b0c8f5854ea6eceff229d474a1f35af0c7b9813ccc1ff370a56a630018203f102d99e83bd6e6cad47cc6d8185d1fa9ea800aedad79f47042ca364000000000000005ee4b32a4b0fb53dc04dcb02aea9d258afd07736e13522ccaaf4077e643c8d1b0102030405060708090a0b0c8e5854ea6dceff229c474a1f35af0c7b9a13ccc1ff370a56a530018203f102d9bb97386e42d0695f862312bd04206bb6")
 	if err != nil {
 		t.Error(err)
 	}
@@ -79,7 +91,7 @@ func TestNewHeader(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	if fmt.Sprintf("%v", header) != "&{[99 114 121 112 116 52 103 104] 1 1 [{[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 108 0 <nil> {65564 {0} 0 [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]}}]}" {
+	if fmt.Sprintf("%v", header) != "&{[99 114 121 112 116 52 103 104] 1 2 [{[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 108 0 <nil> {65564 {0} 0 [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]}} {[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 100 0 <nil> {{1} 3 [1 2 3]}}]}" {
 		t.Fail()
 	}
 }
