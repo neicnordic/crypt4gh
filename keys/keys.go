@@ -18,7 +18,7 @@ import (
 	"io/ioutil"
 )
 import "golang.org/x/crypto/blake2b"
-import "../kdf"
+import "github.com/elixir-oslo/crypt4gh/kdf"
 
 const (
 	ed25519Algorithm = "1.3.101.112"

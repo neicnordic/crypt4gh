@@ -1,10 +1,10 @@
 package headers
 
 import (
-	"../../keys"
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/elixir-oslo/crypt4gh/keys"
 	"os"
 	"testing"
 )

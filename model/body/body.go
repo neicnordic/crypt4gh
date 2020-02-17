@@ -1,10 +1,10 @@
 package body
 
 import (
-	"../headers"
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 

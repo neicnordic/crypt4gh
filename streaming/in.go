@@ -1,11 +1,11 @@
 package streaming
 
 import (
-	"../model/body"
-	"../model/headers"
 	"bytes"
 	"container/list"
 	"errors"
+	"github.com/elixir-oslo/crypt4gh/model/body"
+	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
 	"io"
 )
@@ -84,10 +84,10 @@ func (c *crypt4GHInternalReader) Discard(n int) (discarded int, err error) {
 			return 0, err
 		}
 		err = c.fillBuffer()
-		bytesRead = c.buffer.Cap() - c.buffer.Len()
 		if err != nil {
 			return 0, err
 		}
+		bytesRead = 0
 		currentDecryptedPosition = c.lastDecryptedSegment * headers.UnencryptedDataSegmentSize
 	}
 	delta := newDecryptedPosition - currentDecryptedPosition
@@ -101,6 +101,9 @@ func (c *crypt4GHInternalReader) Discard(n int) (discarded int, err error) {
 }
 
 func (c *crypt4GHInternalReader) discardSegments(n int) error {
+	if n <= 0 {
+		return nil
+	}
 	bytesToSkip := make([]byte, n)
 	_, err := c.reader.Read(bytesToSkip)
 	if err != nil {
@@ -117,14 +120,14 @@ func (c *crypt4GHInternalReader) fillBuffer() error {
 		return err
 	}
 	if read == 0 {
-		c.buffer.Truncate(0)
+		c.buffer.Reset()
 	} else {
+		c.buffer.Reset()
 		segment := body.Segment{DataEncryptionParametersHeaderPackets: c.dataEncryptionParametersHeaderPackets}
 		err := segment.UnmarshalBinary(encryptedSegmentBytes[:read])
 		if err != nil {
 			return err
 		}
-		c.buffer.Grow(len(segment.UnencryptedData))
 		c.buffer.Write(segment.UnencryptedData)
 		c.lastDecryptedSegment++
 	}

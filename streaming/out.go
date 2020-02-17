@@ -1,10 +1,10 @@
 package streaming
 
 import (
-	"../model/body"
-	"../model/headers"
 	"bytes"
 	"crypto/rand"
+	"github.com/elixir-oslo/crypt4gh/model/body"
+	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/nacl/box"
 	"io"

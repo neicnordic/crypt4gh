@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 )
-import "../headers"
+import "github.com/elixir-oslo/crypt4gh/model/headers"
 
 var dataEncryptionParametersHeaderPacket = headers.DataEncryptionParametersHeaderPacket{
 	PacketType:           headers.PacketType{PacketType: headers.DataEncryptionParameters},

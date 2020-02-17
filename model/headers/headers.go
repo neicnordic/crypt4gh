@@ -11,7 +11,7 @@ import (
 	"io"
 )
 
-import "../../keys"
+import "github.com/elixir-oslo/crypt4gh/keys"
 
 const MagicNumber string = "crypt4gh"
 const Version1 uint32 = 1

@@ -1,8 +1,9 @@
 package streaming
 
 import (
-	"../keys"
 	"bytes"
+	"github.com/elixir-oslo/crypt4gh/keys"
+	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"io"
 	"io/ioutil"
 	"os"
@@ -60,9 +61,12 @@ func TestReencryption(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = reader.Discard(4)
+	discarded, err := reader.Discard(headers.UnencryptedDataSegmentSize + 100)
 	if err != nil {
 		t.Error(err)
+	}
+	if discarded != headers.UnencryptedDataSegmentSize+100 {
+		t.Fail()
 	}
 	all, err := ioutil.ReadAll(reader)
 	if err != nil {
@@ -76,7 +80,7 @@ func TestReencryption(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Compare(all, inBytes[4:]) != 0 {
+	if bytes.Compare(all, inBytes[headers.UnencryptedDataSegmentSize+100:]) != 0 {
 		t.Fail()
 	}
 }
