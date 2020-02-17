@@ -4,7 +4,7 @@
 ### Go ###
 # Binaries for programs and plugins
 /dist
-lega-uploader
+crypt4gh
 *.exe
 *.exe~
 *.dll
