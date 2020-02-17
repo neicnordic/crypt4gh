@@ -30,7 +30,7 @@ func TestGenerateKeyPair(t *testing.T) {
 		t.Error(err)
 	}
 	derivedPublicKey := DerivePublicKey(privateKey)
-	if bytes.Compare(publicKey[:], derivedPublicKey[:]) != 0 {
+	if !bytes.Equal(publicKey[:], derivedPublicKey[:]) {
 		t.Fail()
 	}
 }
@@ -176,7 +176,7 @@ func TestGenerateSharedKey(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			if hex.EncodeToString((*sharedKey)[:]) != test.hash {
+			if hex.EncodeToString(*sharedKey) != test.hash {
 				t.Fail()
 			}
 		})

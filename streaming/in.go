@@ -13,7 +13,6 @@ import (
 type crypt4GHInternalReader struct {
 	reader io.Reader
 
-	header                                headers.Header
 	dataEncryptionParametersHeaderPackets []headers.DataEncryptionParametersHeaderPacket
 	encryptedSegmentSize                  int
 	lastDecryptedSegment                  int
@@ -128,7 +127,10 @@ func (c *crypt4GHInternalReader) fillBuffer() error {
 		if err != nil {
 			return err
 		}
-		c.buffer.Write(segment.UnencryptedData)
+		_, err = c.buffer.Write(segment.UnencryptedData)
+		if err != nil {
+			return err
+		}
 		c.lastDecryptedSegment++
 	}
 	return nil

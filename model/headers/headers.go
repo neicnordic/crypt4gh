@@ -57,7 +57,7 @@ func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte
 		return nil, err
 	}
 	if header.Version != Version1 {
-		return nil, errors.New(fmt.Sprintf("version %v not supported", header.Version))
+		return nil, fmt.Errorf("version %v not supported", header.Version)
 	}
 	err = binary.Read(reader, binary.LittleEndian, &header.HeaderPacketCount)
 	if err != nil {
@@ -173,9 +173,8 @@ func (hp HeaderPacket) MarshalBinary() (data []byte, err error) {
 			return nil, err
 		}
 		encryptedMarshalledEncryptedHeaderPacket = aead.Seal(nil, hp.Nonce[:], marshalledEncryptedHeaderPacket, nil)
-		break
 	default:
-		return nil, errors.New(fmt.Sprintf("header encryption method not supported: %v", hp.HeaderEncryptionMethod))
+		return nil, fmt.Errorf("header encryption method not supported: %v", hp.HeaderEncryptionMethod)
 	}
 	hp.PacketLength = uint32(4 + // hp.PacketLength field size
 		4 + // hp.HeaderEncryptionMethod field size
@@ -235,6 +234,9 @@ func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, headerEncryptionMet
 		decryptedPayloadReader := bytes.NewReader(decryptedPayload)
 		var packetType HeaderPacketType
 		err = binary.Read(decryptedPayloadReader, binary.LittleEndian, &packetType)
+		if err != nil {
+			return nil, err
+		}
 		switch packetType {
 		case DataEncryptionParameters:
 			packet, err := NewDataEncryptionParametersHeaderPacket(decryptedPayloadReader)
@@ -242,16 +244,13 @@ func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, headerEncryptionMet
 				return nil, err
 			}
 			encryptedHeaderPacket = *packet
-			break
 		case DataEditList:
 			packet, err := NewDataEditListHeaderPacket(decryptedPayloadReader)
 			if err != nil {
 				return nil, err
 			}
 			encryptedHeaderPacket = *packet
-			break
 		}
-		break
 	}
 
 	return &encryptedHeaderPacket, nil
@@ -285,7 +284,6 @@ func NewDataEncryptionParametersHeaderPacket(reader io.Reader) (*DataEncryptionP
 		if err != nil {
 			return nil, err
 		}
-		break
 	}
 	return &dataEncryptionParametersHeaderPacket, nil
 }

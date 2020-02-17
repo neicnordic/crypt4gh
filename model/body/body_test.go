@@ -58,7 +58,7 @@ func TestSegment_UnmarshalBinary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Compare(nonce[:], segment.UnencryptedData) != 0 {
+	if !bytes.Equal(nonce[:], segment.UnencryptedData) {
 		t.Fail()
 	}
 }

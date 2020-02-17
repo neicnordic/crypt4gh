@@ -80,7 +80,7 @@ func TestReencryption(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if bytes.Compare(all, inBytes[headers.UnencryptedDataSegmentSize+100:]) != 0 {
+	if !bytes.Equal(all, inBytes[headers.UnencryptedDataSegmentSize+100:]) {
 		t.Fail()
 	}
 }

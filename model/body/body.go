@@ -33,7 +33,7 @@ func (s Segment) MarshalBinary() (data []byte, err error) {
 		encryptedData := aead.Seal(nil, s.Nonce[:], s.UnencryptedData, nil)
 		return append(s.Nonce[:], encryptedData...), nil
 	}
-	return nil, errors.New(fmt.Sprintf("unknown data encryption method: %v", dataEncryptionParametersHeaderPacket.DataEncryptionMethod))
+	return nil, fmt.Errorf("unknown data encryption method: %v", dataEncryptionParametersHeaderPacket.DataEncryptionMethod)
 }
 
 func (s *Segment) UnmarshalBinary(encryptedSegment []byte) error {
@@ -53,7 +53,6 @@ func (s *Segment) UnmarshalBinary(encryptedSegment []byte) error {
 				s.UnencryptedData = decryptedSegment
 				return nil
 			}
-			break
 		}
 	}
 	return errors.New("data segment can't be decrypted with any of header keys")

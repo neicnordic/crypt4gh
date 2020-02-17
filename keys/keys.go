@@ -127,7 +127,7 @@ func readCrypt4GHPrivateKey(pemBytes []byte, passPhrase []byte) (privateKey [cha
 	var salt []byte
 	kdfunction, ok := kdf.KDFS[string(kdfName)]
 	if !ok {
-		return privateKey, errors.New(fmt.Sprintf("KDF %v not supported", string(kdfName)))
+		return privateKey, fmt.Errorf("KDF %v not supported", string(kdfName))
 	}
 	if string(kdfName) != "none" {
 		if passPhrase == nil {
@@ -173,7 +173,7 @@ func readCrypt4GHPrivateKey(pemBytes []byte, passPhrase []byte) (privateKey [cha
 		return
 	}
 	if string(ciphername) != supportedCipherName {
-		return privateKey, errors.New(fmt.Sprintf("unsupported key encryption: %v", string(ciphername)))
+		return privateKey, fmt.Errorf("unsupported key encryption: %v", string(ciphername))
 	}
 	var derivedKey []byte
 	derivedKey, err = kdfunction.Derive(int(rounds), passPhrase, salt)

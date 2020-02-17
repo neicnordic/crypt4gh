@@ -178,7 +178,7 @@ func TestHeader_GetDataEncryptionParameterHeaderPackets(t *testing.T) {
 	if packet.EncryptedSegmentSize != 10 ||
 		packet.PacketType.PacketType != DataEncryptionParameters ||
 		packet.DataEncryptionMethod != ChaCha20IETFPoly1305 ||
-		bytes.Compare(packet.DataKey[:], dataKey[:]) != 0 {
+		!bytes.Equal(packet.DataKey[:], dataKey[:]) {
 		t.Fail()
 	}
 }
