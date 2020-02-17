@@ -68,9 +68,16 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 		key, err = ssh.ParseRawPrivateKeyWithPassphrase(allBytes, passPhrase)
 	}
 	if err == nil {
-		edPrivateKey := key.(*ed25519.PrivateKey)
+		// Sometimes the key is returned as a pointer, but sometimes as a value
+		if edPrivateKey, ok := key.(*ed25519.PrivateKey); ok {
+			var edKeyBytes [chacha20poly1305.KeySize * 2]byte
+			copy(edKeyBytes[:], *edPrivateKey)
+			extra25519.PrivateKeyToCurve25519(&privateKey, &edKeyBytes)
+			return
+		}
+		edPrivateKey := key.(ed25519.PrivateKey)
 		var edKeyBytes [chacha20poly1305.KeySize * 2]byte
-		copy(edKeyBytes[:], *edPrivateKey)
+		copy(edKeyBytes[:], edPrivateKey)
 		extra25519.PrivateKeyToCurve25519(&privateKey, &edKeyBytes)
 		return
 	}
