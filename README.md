@@ -3,6 +3,7 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/elixir-oslo/crypt4gh/badge)](https://www.codefactor.io/repository/github/elixir-oslo/crypt4gh)
 [![codecov](https://codecov.io/gh/elixir-oslo/crypt4gh/branch/master/graph/badge.svg)](https://codecov.io/gh/elixir-oslo/crypt4gh)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=elixir-oslo/crypt4gh)](https://dependabot.com)
+
 [![DeepSource](https://static.deepsource.io/deepsource-badge-light.svg)](https://deepsource.io/gh/elixir-oslo/crypt4gh/?ref=repository-badge)
 ## Overview
 ![](https://www.ga4gh.org/wp-content/uploads/Crypt4GH_comic.png)
