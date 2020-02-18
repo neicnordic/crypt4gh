@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"golang.org/x/crypto/chacha20poly1305"
 	"io"
+	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -126,6 +127,60 @@ func TestReadKey(t *testing.T) {
 				t.Fail()
 			}
 		})
+	}
+}
+
+func TestWriteOpenSSLX25519PrivateKey(t *testing.T) {
+	keyFile, err := os.Open("../test/ssl-x25519.sec.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	privateKey, err := ReadPrivateKey(keyFile, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	buf := bytes.Buffer{}
+	err = WriteOpenSSLX25519PrivateKey(&buf, privateKey)
+	if err != nil {
+		t.Error(err)
+	}
+	keyFile, err = os.Open("../test/ssl-x25519.sec.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	keyFileBytes, err := ioutil.ReadAll(keyFile)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(keyFileBytes, buf.Bytes()) {
+		t.Fail()
+	}
+}
+
+func TestWriteOpenSSLX25519PublicKey(t *testing.T) {
+	keyFile, err := os.Open("../test/ssl-x25519.pub.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	publicKey, err := ReadPublicKey(keyFile)
+	if err != nil {
+		t.Error(err)
+	}
+	buf := bytes.Buffer{}
+	err = WriteOpenSSLX25519PublicKey(&buf, publicKey)
+	if err != nil {
+		t.Error(err)
+	}
+	keyFile, err = os.Open("../test/ssl-x25519.pub.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	keyFileBytes, err := ioutil.ReadAll(keyFile)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(keyFileBytes, buf.Bytes()) {
+		t.Fail()
 	}
 }
 

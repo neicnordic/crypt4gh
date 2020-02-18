@@ -21,15 +21,15 @@ import "golang.org/x/crypto/blake2b"
 import "github.com/elixir-oslo/crypt4gh/kdf"
 
 const (
-	ed25519Algorithm = "1.3.101.112"
-	x25519Algorithm  = "1.3.101.110"
-)
-
-const (
+	privateKeyHeader    = "PRIVATE KEY"
+	publicKeyHeader     = "PUBLIC KEY"
 	magic               = "c4gh-v1"
 	none                = "none"
 	supportedCipherName = "chacha20_poly1305"
 )
+
+var ed25519Algorithm = []int{1, 3, 101, 112}
+var x25519Algorithm = []int{1, 3, 101, 110}
 
 func GenerateKeyPair() (publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte, err error) {
 	edPublicKey, edPrivateKey, err := ed25519.GenerateKey(nil)
@@ -48,9 +48,14 @@ func GenerateKeyPair() (publicKey [chacha20poly1305.KeySize]byte, privateKey [ch
 	return
 }
 
+type Payload struct {
+	Body []byte
+}
+
 type openSSLPrivateKey struct {
 	Version   int
 	Algorithm pkix.AlgorithmIdentifier
+	Payload   []byte
 }
 
 func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20poly1305.KeySize]byte, err error) {
@@ -88,7 +93,7 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 	var openSSLPrivateKey openSSLPrivateKey
 	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPrivateKey); err == nil {
 		// Trying to read OpenSSL Ed25519 private key and convert to X25519 private key
-		if openSSLPrivateKey.Algorithm.Algorithm.String() == ed25519Algorithm {
+		if openSSLPrivateKey.Algorithm.Algorithm.Equal(ed25519Algorithm) {
 			var edKeyBytes [chacha20poly1305.KeySize * 2]byte
 			copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
 			extra25519.PrivateKeyToCurve25519(&privateKey, &edKeyBytes)
@@ -96,7 +101,7 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 		}
 
 		// Trying to read OpenSSL X25519 private key
-		if openSSLPrivateKey.Algorithm.Algorithm.String() == x25519Algorithm {
+		if openSSLPrivateKey.Algorithm.Algorithm.Equal(x25519Algorithm) {
 			copy(privateKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
 			return
 		}
@@ -196,6 +201,7 @@ func readCrypt4GHPrivateKey(pemBytes []byte, passPhrase []byte) (privateKey [cha
 
 type openSSLPublicKey struct {
 	Algorithm pkix.AlgorithmIdentifier
+	Payload   asn1.BitString
 }
 
 func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, err error) {
@@ -220,14 +226,14 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 	var openSSLPublicKey openSSLPublicKey
 	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPublicKey); err == nil {
 		// Trying to read OpenSSL Ed25519 public key and convert to X25519 public key
-		if openSSLPublicKey.Algorithm.Algorithm.String() == ed25519Algorithm {
+		if openSSLPublicKey.Algorithm.Algorithm.Equal(ed25519Algorithm) {
 			var edKeyBytes [chacha20poly1305.KeySize]byte
 			copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
 			extra25519.PublicKeyToCurve25519(&publicKey, &edKeyBytes)
 			return
 		}
 		// Trying to read OpenSSL X25519 public key
-		if openSSLPublicKey.Algorithm.Algorithm.String() == x25519Algorithm {
+		if openSSLPublicKey.Algorithm.Algorithm.Equal(x25519Algorithm) {
 			copy(publicKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
 			return
 		}
@@ -236,6 +242,44 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 	// Interpreting bytes as Crypt4GH public key bytes (X25519)
 	copy(publicKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
 	return publicKey, nil
+}
+
+func WriteOpenSSLX25519PrivateKey(writer io.Writer, privateKey [chacha20poly1305.KeySize]byte) error {
+	marshalledPayload, err := asn1.Marshal(privateKey[:])
+	if err != nil {
+		return err
+	}
+	openSSLPrivateKey := openSSLPrivateKey{
+		Algorithm: pkix.AlgorithmIdentifier{Algorithm: x25519Algorithm},
+		Payload:   marshalledPayload[:],
+	}
+	marshalledPrivateKey, err := asn1.Marshal(openSSLPrivateKey)
+	if err != nil {
+		return err
+	}
+	block := pem.Block{
+		Type:    privateKeyHeader,
+		Headers: nil,
+		Bytes:   marshalledPrivateKey,
+	}
+	return pem.Encode(writer, &block)
+}
+
+func WriteOpenSSLX25519PublicKey(writer io.Writer, publicKey [chacha20poly1305.KeySize]byte) error {
+	openSSLPrivateKey := openSSLPublicKey{
+		Algorithm: pkix.AlgorithmIdentifier{Algorithm: x25519Algorithm},
+		Payload:   asn1.BitString{Bytes: publicKey[:]},
+	}
+	marshalledPublicKey, err := asn1.Marshal(openSSLPrivateKey)
+	if err != nil {
+		return err
+	}
+	block := pem.Block{
+		Type:    publicKeyHeader,
+		Headers: nil,
+		Bytes:   marshalledPublicKey,
+	}
+	return pem.Encode(writer, &block)
 }
 
 func DerivePublicKey(privateKey [chacha20poly1305.KeySize]byte) (publicKey [chacha20poly1305.KeySize]byte) {
