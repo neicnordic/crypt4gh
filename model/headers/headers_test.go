@@ -225,3 +225,28 @@ func TestHeader_GetDataEncryptionParameterHeaderPackets(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestHeader_GetDataEditListHeaderPacket(t *testing.T) {
+	header := Header{
+		HeaderPackets: []HeaderPacket{
+			{
+				EncryptedHeaderPacket: DataEditListHeaderPacket{
+					PacketType:    PacketType{DataEditList},
+					NumberLengths: 2,
+					Lengths:       []uint64{10, 100},
+				},
+			},
+		},
+	}
+	packet := header.GetDataEditListHeaderPacket()
+	if packet == nil {
+		t.Fail()
+	} else {
+		if packet.PacketType.PacketType != DataEditList ||
+			packet.NumberLengths != 2 ||
+			packet.Lengths[0] != 10 ||
+			packet.Lengths[1] != 100 {
+			t.Fail()
+		}
+	}
+}

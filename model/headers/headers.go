@@ -142,6 +142,18 @@ func (h Header) GetDataEncryptionParameterHeaderPackets() (*[]DataEncryptionPara
 	return &dataEncryptionParametersHeaderPackets, nil
 }
 
+func (h Header) GetDataEditListHeaderPacket() *DataEditListHeaderPacket {
+	for _, headerPacket := range h.HeaderPackets {
+		encryptedHeaderPacket := headerPacket.EncryptedHeaderPacket
+		packetType := encryptedHeaderPacket.GetPacketType()
+		if packetType == DataEditList {
+			dataEditListHeaderPacket := encryptedHeaderPacket.(DataEditListHeaderPacket)
+			return &dataEditListHeaderPacket
+		}
+	}
+	return nil
+}
+
 func (h Header) MarshalBinary() (data []byte, err error) {
 	buffer := bytes.Buffer{}
 	err = binary.Write(&buffer, binary.LittleEndian, h.MagicNumber)
