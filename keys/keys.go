@@ -48,10 +48,6 @@ func GenerateKeyPair() (publicKey [chacha20poly1305.KeySize]byte, privateKey [ch
 	return
 }
 
-type Payload struct {
-	Body []byte
-}
-
 type openSSLPrivateKey struct {
 	Version   int
 	Algorithm pkix.AlgorithmIdentifier
