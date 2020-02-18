@@ -96,6 +96,49 @@ func TestNewHeader(t *testing.T) {
 	}
 }
 
+func TestReadHeader(t *testing.T) {
+	inFile, err := os.Open("../../test/sample.txt.enc")
+	if err != nil {
+		t.Error(err)
+	}
+	keyFile, err := os.Open("../../test/crypt4gh-x25519-enc.sec.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(keyFile, []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	header, err := ReadHeader(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	buf := bytes.Buffer{}
+	_, err = buf.Write(header)
+	if err != nil {
+		t.Error(err)
+	}
+	err = inFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	inFile, err = os.Open("../../test/sample.txt.enc")
+	if err != nil {
+		t.Error(err)
+	}
+	header1, err := NewHeader(inFile, readerSecretKey)
+	if err != nil {
+		t.Error(err)
+	}
+	header2, err := NewHeader(&buf, readerSecretKey)
+	if err != nil {
+		t.Error(err)
+	}
+	if fmt.Sprintf("%v", header1) != fmt.Sprintf("%v", header2) {
+		t.Fail()
+	}
+}
+
 func TestHeaderMarshallingWithoutNonce(t *testing.T) {
 	keyFile, err := os.Open("../../test/ssh-ed25519-enc.sec.pem")
 	if err != nil {

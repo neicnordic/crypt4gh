@@ -43,6 +43,59 @@ type Header struct {
 	HeaderPackets     []HeaderPacket
 }
 
+func ReadHeader(reader io.Reader) (header []byte, err error) {
+	buf := bytes.Buffer{}
+	var magicNumber = [8]byte{}
+	_, err = reader.Read(magicNumber[:])
+	if err != nil {
+		return
+	}
+	if string(magicNumber[:]) != MagicNumber {
+		return header, errors.New("not a Crypt4GH file")
+	}
+	_, err = buf.Write(magicNumber[:])
+	if err != nil {
+		return
+	}
+	var version uint32
+	err = binary.Read(reader, binary.LittleEndian, &version)
+	if err != nil {
+		return
+	}
+	if version != Version1 {
+		return header, fmt.Errorf("version %v not supported", version)
+	}
+	err = binary.Write(&buf, binary.LittleEndian, version)
+	if err != nil {
+		return
+	}
+	var headerPacketCount uint32
+	err = binary.Read(reader, binary.LittleEndian, &headerPacketCount)
+	if err != nil {
+		return
+	}
+	err = binary.Write(&buf, binary.LittleEndian, headerPacketCount)
+	if err != nil {
+		return
+	}
+	for i := uint32(0); i < headerPacketCount; i++ {
+		var packetLength uint32
+		err = binary.Read(reader, binary.LittleEndian, &packetLength)
+		if err != nil {
+			return
+		}
+		err = binary.Write(&buf, binary.LittleEndian, packetLength)
+		if err != nil {
+			return
+		}
+		_, err = io.CopyN(&buf, reader, int64(packetLength))
+		if err != nil {
+			return
+		}
+	}
+	return buf.Bytes(), nil
+}
+
 func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte) (*Header, error) {
 	header := Header{}
 	_, err := reader.Read(header.MagicNumber[:])
