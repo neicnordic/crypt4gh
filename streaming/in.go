@@ -14,6 +14,7 @@ type crypt4GHInternalReader struct {
 	reader io.Reader
 
 	dataEncryptionParametersHeaderPackets []headers.DataEncryptionParametersHeaderPacket
+	dataEditList                          *headers.DataEditListHeaderPacket
 	encryptedSegmentSize                  int
 	lastDecryptedSegment                  int
 	buffer                                bytes.Buffer
@@ -30,6 +31,7 @@ func newCrypt4GHInternalReader(reader io.Reader, readerPrivateKey [chacha20poly1
 		return nil, err
 	}
 	crypt4GHInternalReader.dataEncryptionParametersHeaderPackets = *dataEncryptionParameterHeaderPackets
+	crypt4GHInternalReader.dataEditList = header.GetDataEditListHeaderPacket()
 	firstDataEncryptionParametersHeader := crypt4GHInternalReader.dataEncryptionParametersHeaderPackets[0]
 	for _, dataEncryptionParametersHeader := range crypt4GHInternalReader.dataEncryptionParametersHeaderPackets {
 		if dataEncryptionParametersHeader.GetPacketType() != firstDataEncryptionParametersHeader.GetPacketType() {
@@ -151,15 +153,24 @@ func NewCrypt4GHReader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeyS
 	}
 	crypt4GHReader := Crypt4GHReader{
 		reader:          *internalReader,
-		useDataEditList: dataEditList != nil,
+		useDataEditList: dataEditList != nil || internalReader.dataEditList != nil,
 		lengths:         list.List{},
 		bytesRead:       0,
 	}
 	if dataEditList != nil {
 		skip := true
 		for i := uint32(0); i < dataEditList.NumberLengths; i++ {
-			crypt4GHReader.lengths.PushFront(DataEditListEntry{
+			crypt4GHReader.lengths.PushBack(DataEditListEntry{
 				length: dataEditList.Lengths[i],
+				skip:   skip,
+			})
+			skip = !skip
+		}
+	} else if internalReader.dataEditList != nil {
+		skip := true
+		for i := uint32(0); i < internalReader.dataEditList.NumberLengths; i++ {
+			crypt4GHReader.lengths.PushBack(DataEditListEntry{
+				length: internalReader.dataEditList.Lengths[i],
 				skip:   skip,
 			})
 			skip = !skip
@@ -213,6 +224,9 @@ func (c *Crypt4GHReader) readByteWithDataEditList() (byte, error) {
 			c.lengths.Remove(element)
 			c.bytesRead = 0
 			return c.readByteWithDataEditList()
+		} else {
+			c.bytesRead++
+			return c.reader.ReadByte()
 		}
 	}
 	return 0, io.EOF

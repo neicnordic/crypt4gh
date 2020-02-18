@@ -51,7 +51,7 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 	crypt4GHWriter.header = headers.Header{
 		MagicNumber:       magicNumber,
 		Version:           headers.Version1,
-		HeaderPacketCount: 1,
+		HeaderPacketCount: uint32(len(headerPackets)),
 		HeaderPackets:     headerPackets,
 	}
 	binaryHeader, err := crypt4GHWriter.header.MarshalBinary()
