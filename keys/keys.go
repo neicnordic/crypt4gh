@@ -251,7 +251,7 @@ func WriteOpenSSLX25519PrivateKey(writer io.Writer, privateKey [chacha20poly1305
 	}
 	openSSLPrivateKey := openSSLPrivateKey{
 		Algorithm: pkix.AlgorithmIdentifier{Algorithm: x25519Algorithm},
-		Payload:   marshalledPayload[:],
+		Payload:   marshalledPayload,
 	}
 	marshalledPrivateKey, err := asn1.Marshal(openSSLPrivateKey)
 	if err != nil {
