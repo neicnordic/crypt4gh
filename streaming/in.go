@@ -66,12 +66,12 @@ func (c *crypt4GHInternalReader) ReadByte() (byte, error) {
 
 func (c *crypt4GHInternalReader) Discard(n int) (discarded int, err error) {
 	if n < 0 {
-		return 0, nil
+		return
 	}
 	if c.buffer.Len() == 0 {
-		err := c.fillBuffer()
+		err = c.fillBuffer()
 		if err != nil {
-			return 0, err
+			return
 		}
 	}
 	bytesRead := c.buffer.Cap() - c.buffer.Len()
@@ -80,38 +80,46 @@ func (c *crypt4GHInternalReader) Discard(n int) (discarded int, err error) {
 	newSegmentNumber := newDecryptedPosition / headers.UnencryptedDataSegmentSize
 	if newSegmentNumber != c.lastDecryptedSegment {
 		segmentsToDiscard := newSegmentNumber - c.lastDecryptedSegment - 1
-		err := c.discardSegments(segmentsToDiscard)
+		discarded, err = c.discardSegments(segmentsToDiscard)
 		if err != nil {
-			return 0, err
+			return discarded, err
 		}
 		err = c.fillBuffer()
 		if err != nil {
-			return 0, err
+			c.buffer.Reset()
+			return discarded, err
 		}
-		bytesRead = 0
+		discarded += headers.UnencryptedDataSegmentSize
 		currentDecryptedPosition = c.lastDecryptedSegment * headers.UnencryptedDataSegmentSize
 	}
 	delta := newDecryptedPosition - currentDecryptedPosition
-	if bytesRead+delta > c.buffer.Len() {
-		missingBytes := bytesRead + delta - c.buffer.Len()
-		c.buffer.Next(delta - missingBytes)
-		return n - missingBytes, nil
-	}
 	c.buffer.Next(delta)
-	return n, nil
+	return discarded + delta, err
 }
 
-func (c *crypt4GHInternalReader) discardSegments(n int) error {
-	if n <= 0 {
-		return nil
+func (c *crypt4GHInternalReader) discardSegments(segments int) (bytesDiscarded int, err error) {
+	if segments <= 0 {
+		return
 	}
-	bytesToSkip := make([]byte, n)
-	_, err := c.reader.Read(bytesToSkip)
+	for i := 0; i < segments; i++ {
+		discarded := 0
+		discarded, err = c.discardSegment()
+		bytesDiscarded += discarded
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (c *crypt4GHInternalReader) discardSegment() (bytesDiscarded int, err error) {
+	bytesToSkip := make([]byte, c.encryptedSegmentSize)
+	bytesDiscarded, err = c.reader.Read(bytesToSkip)
 	if err != nil {
-		return err
+		return
 	}
 	c.lastDecryptedSegment++
-	return nil
+	return
 }
 
 func (c *crypt4GHInternalReader) fillBuffer() error {

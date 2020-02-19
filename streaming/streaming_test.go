@@ -20,16 +20,20 @@ func TestReencryption(t *testing.T) {
 			discard: 0,
 		},
 		{
-			name:    "discard 100",
+			name:    "within the first segment",
 			discard: 100,
 		},
 		{
-			name:    "discard UnencryptedDataSegmentSize",
+			name:    "on the edge",
 			discard: headers.UnencryptedDataSegmentSize,
 		},
 		{
-			name:    "discard UnencryptedDataSegmentSize + 100",
+			name:    "within the second segment",
 			discard: headers.UnencryptedDataSegmentSize + 100,
+		},
+		{
+			name:    "out of range",
+			discard: headers.UnencryptedDataSegmentSize * 2,
 		},
 	}
 	for _, test := range tests {
@@ -86,10 +90,14 @@ func TestReencryption(t *testing.T) {
 			}
 			discarded, err := reader.Discard(test.discard)
 			if err != nil {
-				t.Error(err)
+				if test.discard != headers.UnencryptedDataSegmentSize*2 {
+					t.Error(err)
+				}
 			}
 			if discarded != test.discard {
-				t.Fail()
+				if test.discard != headers.UnencryptedDataSegmentSize*2 {
+					t.Fail()
+				}
 			}
 			all, err := ioutil.ReadAll(reader)
 			if err != nil {
@@ -103,7 +111,11 @@ func TestReencryption(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			if !bytes.Equal(all, inBytes[test.discard:]) {
+			toDiscard := test.discard
+			if test.discard > len(inBytes) {
+				toDiscard = len(inBytes)
+			}
+			if !bytes.Equal(all, inBytes[toDiscard:]) {
 				t.Fail()
 			}
 		})
