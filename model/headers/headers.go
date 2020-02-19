@@ -1,3 +1,4 @@
+// Package headers contains structure and related methods for representing Crypt4GH header packets.
 package headers
 
 import (
@@ -13,29 +14,45 @@ import (
 
 import "github.com/elixir-oslo/crypt4gh/keys"
 
-const MagicNumber string = "crypt4gh"
-const Version1 uint32 = 1
-const UnencryptedDataSegmentSize = 65536
+const (
+	// MagicNumber is standard beginning of Crypt4GH header.
+	MagicNumber string = "crypt4gh"
 
+	// Version stands for current supported version.
+	Version uint32 = 1
+
+	// UnencryptedDataSegmentSize is the size of chunk of raw data.
+	UnencryptedDataSegmentSize int = 65536
+)
+
+// HeaderPacketType is the enum listing possible header packet types.
 type HeaderPacketType uint32
 
 const (
+	// DataEncryptionParameters is a packet type for data encryption parameters header packet.
 	DataEncryptionParameters HeaderPacketType = iota
+
+	// DataEditList is a packet type for data edit list header packet.
 	DataEditList
 )
 
+// HeaderEncryptionMethod is the enum listing supported methods of encryption for header packets.
 type HeaderEncryptionMethod uint32
 
 const (
+	// X25519ChaCha20IETFPoly1305 is header encryption method for X25519-ChaCha20-IETF-Poly1305.
 	X25519ChaCha20IETFPoly1305 HeaderEncryptionMethod = iota
 )
 
+// DataEncryptionMethod is the enum listing supported methods of encryption for data segments.
 type DataEncryptionMethod uint32
 
 const (
+	// ChaCha20IETFPoly1305 is header encryption method for ChaCha20-IETF-Poly1305.
 	ChaCha20IETFPoly1305 DataEncryptionMethod = iota
 )
 
+// Header structure represents Crypt4GH header.
 type Header struct {
 	MagicNumber       [8]byte
 	Version           uint32
@@ -43,6 +60,7 @@ type Header struct {
 	HeaderPackets     []HeaderPacket
 }
 
+// ReadHeader method strips off the header from the io.Reader and returns it as a byte array.
 func ReadHeader(reader io.Reader) (header []byte, err error) {
 	buf := bytes.Buffer{}
 	var magicNumber = [8]byte{}
@@ -62,7 +80,7 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 	if err != nil {
 		return
 	}
-	if version != Version1 {
+	if version != Version {
 		return header, fmt.Errorf("version %v not supported", version)
 	}
 	err = binary.Write(&buf, binary.LittleEndian, version)
@@ -96,6 +114,7 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 	return buf.Bytes(), nil
 }
 
+// NewHeader method constructs Header from io.Reader and supplied private key.
 func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte) (*Header, error) {
 	header := Header{}
 	_, err := reader.Read(header.MagicNumber[:])
@@ -109,7 +128,7 @@ func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte
 	if err != nil {
 		return nil, err
 	}
-	if header.Version != Version1 {
+	if header.Version != Version {
 		return nil, fmt.Errorf("version %v not supported", header.Version)
 	}
 	err = binary.Read(reader, binary.LittleEndian, &header.HeaderPacketCount)
@@ -127,6 +146,7 @@ func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte
 	return &header, nil
 }
 
+// GetDataEncryptionParameterHeaderPackets returns packets of type DataEncryptionParameterHeader.
 func (h Header) GetDataEncryptionParameterHeaderPackets() (*[]DataEncryptionParametersHeaderPacket, error) {
 	dataEncryptionParametersHeaderPackets := make([]DataEncryptionParametersHeaderPacket, 0)
 	for _, headerPacket := range h.HeaderPackets {
@@ -142,6 +162,8 @@ func (h Header) GetDataEncryptionParameterHeaderPackets() (*[]DataEncryptionPara
 	return &dataEncryptionParametersHeaderPackets, nil
 }
 
+// GetDataEditListHeaderPacket returns packet of type DataEditListHeaderPacket. Note that only one
+// DataEditListHeaderPacket is returned - even if there are more in the Header.
 func (h Header) GetDataEditListHeaderPacket() *DataEditListHeaderPacket {
 	for _, headerPacket := range h.HeaderPackets {
 		encryptedHeaderPacket := headerPacket.EncryptedHeaderPacket
@@ -154,6 +176,7 @@ func (h Header) GetDataEditListHeaderPacket() *DataEditListHeaderPacket {
 	return nil
 }
 
+// MarshalBinary implements method MarshalBinary.BinaryMarshaler.
 func (h Header) MarshalBinary() (data []byte, err error) {
 	buffer := bytes.Buffer{}
 	err = binary.Write(&buffer, binary.LittleEndian, h.MagicNumber)
@@ -181,6 +204,7 @@ func (h Header) MarshalBinary() (data []byte, err error) {
 	return buffer.Bytes(), nil
 }
 
+// HeaderPacket structure represents Crypt4GH header packet.
 type HeaderPacket struct {
 	WriterPrivateKey       [chacha20poly1305.KeySize]byte
 	ReaderPublicKey        [chacha20poly1305.KeySize]byte
@@ -190,6 +214,7 @@ type HeaderPacket struct {
 	EncryptedHeaderPacket  EncryptedHeaderPacket
 }
 
+// NewHeaderPacket method constructs HeaderPacket from io.Reader and supplied private key.
 func NewHeaderPacket(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte) (*HeaderPacket, error) {
 	var headerPacket HeaderPacket
 	err := binary.Read(reader, binary.LittleEndian, &headerPacket.PacketLength)
@@ -213,6 +238,7 @@ func NewHeaderPacket(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySiz
 	return &headerPacket, nil
 }
 
+// MarshalBinary implements method MarshalBinary.BinaryMarshaler.
 func (hp HeaderPacket) MarshalBinary() (data []byte, err error) {
 	var encryptedMarshalledEncryptedHeaderPacket []byte
 	switch hp.HeaderEncryptionMethod {
@@ -271,11 +297,17 @@ func (hp HeaderPacket) MarshalBinary() (data []byte, err error) {
 	return buffer.Bytes(), nil
 }
 
+// EncryptedHeaderPacket interface describes possible header packets: DataEncryptionParametersHeaderPacket and
+// DataEditListHeaderPacket.
 type EncryptedHeaderPacket interface {
+	// GetPacketType method returns packet type of the header packet.
 	GetPacketType() HeaderPacketType
+
+	// MarshalBinary implements method MarshalBinary.BinaryMarshaler.
 	MarshalBinary() (data []byte, err error)
 }
 
+// NewEncryptedHeaderPacket method constructs EncryptedHeaderPacket from io.Reader and supplied private key.
 func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, headerEncryptionMethod HeaderEncryptionMethod, readerPrivateKey [chacha20poly1305.KeySize]byte) (*EncryptedHeaderPacket, error) {
 	var encryptedHeaderPacket EncryptedHeaderPacket
 	switch headerEncryptionMethod {
@@ -321,14 +353,17 @@ func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, headerEncryptionMet
 	return &encryptedHeaderPacket, nil
 }
 
+// PacketType structure is a wrapper for HeaderPacketType.
 type PacketType struct {
 	PacketType HeaderPacketType
 }
 
+// GetPacketType method returns packet type of the header packet.
 func (pth PacketType) GetPacketType() HeaderPacketType {
 	return pth.PacketType
 }
 
+// DataEncryptionParametersHeaderPacket structure represents Crypt4GH data encryption parameters header packet.
 type DataEncryptionParametersHeaderPacket struct {
 	EncryptedSegmentSize int
 	PacketType
@@ -336,6 +371,7 @@ type DataEncryptionParametersHeaderPacket struct {
 	DataKey              [chacha20poly1305.KeySize]byte
 }
 
+// NewDataEncryptionParametersHeaderPacket method constructs DataEncryptionParametersHeaderPacket from io.Reader.
 func NewDataEncryptionParametersHeaderPacket(reader io.Reader) (*DataEncryptionParametersHeaderPacket, error) {
 	dataEncryptionParametersHeaderPacket := DataEncryptionParametersHeaderPacket{PacketType: PacketType{DataEncryptionParameters}}
 	err := binary.Read(reader, binary.LittleEndian, &dataEncryptionParametersHeaderPacket.DataEncryptionMethod)
@@ -353,6 +389,7 @@ func NewDataEncryptionParametersHeaderPacket(reader io.Reader) (*DataEncryptionP
 	return &dataEncryptionParametersHeaderPacket, nil
 }
 
+// MarshalBinary implements method MarshalBinary.BinaryMarshaler.
 func (dephp DataEncryptionParametersHeaderPacket) MarshalBinary() (data []byte, err error) {
 	buffer := bytes.Buffer{}
 	err = binary.Write(&buffer, binary.LittleEndian, dephp.PacketType)
@@ -370,12 +407,14 @@ func (dephp DataEncryptionParametersHeaderPacket) MarshalBinary() (data []byte, 
 	return buffer.Bytes(), nil
 }
 
+// DataEditListHeaderPacket structure represents Crypt4GH data edit list header packet.
 type DataEditListHeaderPacket struct {
 	PacketType
 	NumberLengths uint32
 	Lengths       []uint64
 }
 
+// NewDataEditListHeaderPacket method constructs DataEditListHeaderPacket from io.Reader.
 func NewDataEditListHeaderPacket(reader io.Reader) (*DataEditListHeaderPacket, error) {
 	dataEditListHeaderPacket := DataEditListHeaderPacket{PacketType: PacketType{DataEditList}}
 	err := binary.Read(reader, binary.LittleEndian, &dataEditListHeaderPacket.NumberLengths)
@@ -394,6 +433,7 @@ func NewDataEditListHeaderPacket(reader io.Reader) (*DataEditListHeaderPacket, e
 	return &dataEditListHeaderPacket, nil
 }
 
+// MarshalBinary implements method MarshalBinary.BinaryMarshaler.
 func (delhp DataEditListHeaderPacket) MarshalBinary() (data []byte, err error) {
 	buffer := bytes.Buffer{}
 	err = binary.Write(&buffer, binary.LittleEndian, delhp.PacketType)

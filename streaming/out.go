@@ -53,7 +53,7 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 	copy(magicNumber[:], headers.MagicNumber)
 	crypt4GHWriter.header = headers.Header{
 		MagicNumber:       magicNumber,
-		Version:           headers.Version1,
+		Version:           headers.Version,
 		HeaderPacketCount: uint32(len(headerPackets)),
 		HeaderPackets:     headerPackets,
 	}
