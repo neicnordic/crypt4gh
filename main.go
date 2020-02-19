@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/elixir-oslo/crypt4gh/keys"
+	"github.com/elixir-oslo/crypt4gh/streaming"
 	"github.com/jessevdk/go-flags"
 	"github.com/logrusorgru/aurora"
 	"github.com/manifoldco/promptui"
 	"golang.org/x/crypto/chacha20poly1305"
+	"io"
 	"log"
 	"os"
 )
@@ -25,7 +27,7 @@ var generateOptions struct {
 var generateOptionsParser = flags.NewParser(&generateOptions, flags.None)
 
 var encryptOptions struct {
-	FileName          string `short:"f"  long:"file" description:"File to encrypt" value-name:"FILE"`
+	FileName          string `short:"f"  long:"file" description:"File to encrypt" value-name:"FILE" required:"true"`
 	SecretKeyFileName string `short:"s" long:"seckey" description:"Secret key to use" value-name:"FILE" required:"true"`
 	PublicKeyFileName string `short:"p" long:"pubkey" description:"Public key to use" value-name:"FILE" required:"true"`
 }
@@ -63,10 +65,66 @@ func main() {
 		}
 	case encrypt:
 		_, err := encryptOptionsParser.Parse()
-
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
+		publicKeyFile, err := os.Open(encryptOptions.PublicKeyFileName)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		publicKey, err := keys.ReadPublicKey(publicKeyFile)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		secretKeyFile, err := os.Open(encryptOptions.SecretKeyFileName)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		var privateKey [chacha20poly1305.KeySize]byte
+		privateKey, err = keys.ReadPrivateKey(secretKeyFile, nil)
+		if err != nil {
+			password, err := promptPassword(4)
+			if err != nil {
+				log.Fatal(aurora.Red(err))
+			}
+			privateKey, err = keys.ReadPrivateKey(secretKeyFile, []byte(password))
+			if err != nil {
+				log.Fatal(aurora.Red(err))
+			}
+		}
+		inFile, err := os.Open(encryptOptions.FileName)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		outFileName := encryptOptions.FileName + ".c4gh"
+		if fileExists(outFileName) {
+			promptYesNo(fmt.Sprintf("File with name '%v' already exists. Please, confirm overwriting", outFileName))
+		}
+		outFile, err := os.Create(outFileName)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		crypt4GHWriter, err := streaming.NewCrypt4GHWriter(outFile, publicKey, privateKey, nil)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		written, err := io.Copy(crypt4GHWriter, inFile)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		err = inFile.Close()
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		err = crypt4GHWriter.Close()
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		err = outFile.Close()
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		fmt.Println(aurora.Green(fmt.Sprintf("Success, %v bytes encrypted!", written)))
 	case decrypt:
 		_, err := decryptOptionsParser.Parse()
 		if err != nil {
