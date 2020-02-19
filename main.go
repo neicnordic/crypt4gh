@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/elixir-oslo/crypt4gh/streaming"
@@ -47,12 +48,15 @@ var decryptOptions struct {
 
 var decryptOptionsParser = flags.NewParser(&decryptOptions, flags.None)
 
+const (
+	usageString        = "Usage:\n  crypt4gh\n"
+	applicationOptions = "Application Options"
+)
+
 func main() {
 	args := os.Args
 	if len(args) == 1 || args[1] == "-h" || args[1] == "--help" {
-		generateOptionsParser.WriteHelp(os.Stdout)
-		encryptOptionsParser.WriteHelp(os.Stdout)
-		decryptOptionsParser.WriteHelp(os.Stdout)
+		fmt.Println(generateHelpMessage())
 		os.Exit(0)
 	}
 	if args[1] == "-v" || args[1] == "--version" {
@@ -262,4 +266,28 @@ func fileExists(fileName string) bool {
 		return false
 	}
 	return !info.IsDir()
+}
+
+func generateHelpMessage() string {
+	header := "crypt4gh [generate | encrypt | decrypt] <args>\n"
+
+	buf := bytes.Buffer{}
+	generateOptionsParser.WriteHelp(&buf)
+	generateUsage := string(buf.Bytes())
+	generateUsage = strings.Replace(generateUsage, usageString, "", 1)
+	generateUsage = strings.Replace(generateUsage, applicationOptions, " "+generate, 1)
+
+	buf.Reset()
+	encryptOptionsParser.WriteHelp(&buf)
+	encryptUsage := string(buf.Bytes())
+	encryptUsage = strings.Replace(encryptUsage, usageString, "", 1)
+	encryptUsage = strings.Replace(encryptUsage, applicationOptions, " "+encrypt, 1)
+
+	buf.Reset()
+	decryptOptionsParser.WriteHelp(&buf)
+	decryptUsage := string(buf.Bytes())
+	decryptUsage = strings.Replace(decryptUsage, usageString, "", 1)
+	decryptUsage = strings.Replace(decryptUsage, applicationOptions, " "+decrypt, 1)
+
+	return header + generateUsage + encryptUsage + decryptUsage
 }

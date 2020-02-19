@@ -24,5 +24,18 @@ TODO
 
 ## Usage
 ```
-TODO
+$ crypt4gh
+crypt4gh [generate | encrypt | decrypt] <args>
+
+ generate:
+  -n, --name= Key pair name
+
+ encrypt:
+  -f, --file=FILE      File to encrypt
+  -s, --seckey=FILE    Secret key to use
+  -p, --pubkey=FILE    Public key to use
+
+ decrypt:
+  -f, --file=FILE      File to decrypt
+  -s, --seckey=FILE    Secret key to use
 ```
