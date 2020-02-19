@@ -1,3 +1,5 @@
+// Package main is the main package of Crypt4GH command-line tool, containing "generate", "encrypt" and "decrypt"
+// commands implementations along with additional helper methods.
 package main
 
 import (
@@ -169,7 +171,7 @@ func main() {
 
 func readPublicKey(fileName string) (publicKey [chacha20poly1305.KeySize]byte, err error) {
 	var publicKeyFile *os.File
-	publicKeyFile, err = os.Open(encryptOptions.PublicKeyFileName)
+	publicKeyFile, err = os.Open(fileName)
 	if err != nil {
 		return
 	}
