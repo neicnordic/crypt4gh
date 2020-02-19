@@ -62,11 +62,16 @@ func main() {
 			log.Fatal(aurora.Red(err))
 		}
 	case encrypt:
-		_, _ = encryptOptionsParser.Parse()
-		fmt.Printf("%v", encryptOptions)
+		_, err := encryptOptionsParser.Parse()
+
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
 	case decrypt:
-		_, _ = decryptOptionsParser.Parse()
-		fmt.Printf("%v", decryptOptions)
+		_, err := decryptOptionsParser.Parse()
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
 	default:
 		log.Fatal(aurora.Red(fmt.Sprintf("command '%v' is not recognized", commandName)))
 	}
@@ -76,17 +81,7 @@ func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, private
 	publicKeyFileName := name + ".pub.pem"
 	privateKeyFileName := name + ".sec.pem"
 	if fileExists(publicKeyFileName) || fileExists(privateKeyFileName) {
-		prompt := promptui.Select{
-			Label: fmt.Sprintf("Key pair with name '%v' seems to already exist. Do you want to overwrite it?", name),
-			Items: []string{"Yes", "No"},
-		}
-		_, result, err := prompt.Run()
-		if err != nil {
-			return err
-		}
-		if result != "Yes" {
-			os.Exit(0)
-		}
+		promptYesNo(fmt.Sprintf("Key pair with name '%v' seems to already exist. Please, confirm overwriting", name))
 	}
 	publicKeyFile, err := os.Create(publicKeyFileName)
 	if err != nil {
@@ -113,6 +108,31 @@ func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, private
 		return err
 	}
 	return nil
+}
+
+func promptYesNo(message string) {
+	prompt := promptui.Select{
+		Label: message,
+		Items: []string{"Yes", "No"},
+	}
+	_, result, err := prompt.Run()
+	if err != nil || result != "Yes" {
+		os.Exit(0)
+	}
+}
+
+func promptPassword(minLength int) (password string, err error) {
+	validate := func(input string) error {
+		if len(input) < minLength {
+			return fmt.Errorf("password is too short: min length is %v", minLength)
+		}
+		return nil
+	}
+	prompt := promptui.Prompt{
+		Label:    "Enter the password to unlock the key",
+		Validate: validate,
+	}
+	return prompt.Run()
 }
 
 func fileExists(fileName string) bool {
