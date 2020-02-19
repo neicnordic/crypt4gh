@@ -5,6 +5,8 @@ import (
 	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/jessevdk/go-flags"
 	"github.com/logrusorgru/aurora"
+	"github.com/manifoldco/promptui"
+	"golang.org/x/crypto/chacha20poly1305"
 	"log"
 	"os"
 )
@@ -17,8 +19,7 @@ const (
 )
 
 var generateOptions struct {
-	Name     string `short:"n" long:"name" description:"Key pair name" required:"true"`
-	Password string `short:"p" long:"password" description:"Private key password (asked interactively later if skipped)"`
+	Name string `short:"n" long:"name" description:"Key pair name" required:"true"`
 }
 
 var generateOptionsParser = flags.NewParser(&generateOptions, flags.None)
@@ -56,8 +57,10 @@ func main() {
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
-		fmt.Printf("%v", publicKey)
-		fmt.Printf("%v", privateKey)
+		err = writeKeyPair(generateOptions.Name, publicKey, privateKey)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
 	case encrypt:
 		_, _ = encryptOptionsParser.Parse()
 		fmt.Printf("%v", encryptOptions)
@@ -67,4 +70,55 @@ func main() {
 	default:
 		log.Fatal(aurora.Red(fmt.Sprintf("command '%v' is not recognized", commandName)))
 	}
+}
+
+func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte) error {
+	publicKeyFileName := name + ".pub.pem"
+	privateKeyFileName := name + ".sec.pem"
+	if fileExists(publicKeyFileName) || fileExists(privateKeyFileName) {
+		prompt := promptui.Select{
+			Label: fmt.Sprintf("Key pair with name '%v' seems to already exist. Do you want to overwrite it?", name),
+			Items: []string{"Yes", "No"},
+		}
+		_, result, err := prompt.Run()
+		if err != nil {
+			return err
+		}
+		if result != "Yes" {
+			os.Exit(0)
+		}
+	}
+	publicKeyFile, err := os.Create(publicKeyFileName)
+	if err != nil {
+		return err
+	}
+	err = keys.WriteOpenSSLX25519PublicKey(publicKeyFile, publicKey)
+	if err != nil {
+		return err
+	}
+	err = publicKeyFile.Close()
+	if err != nil {
+		return err
+	}
+	privateKeyFile, err := os.Create(privateKeyFileName)
+	if err != nil {
+		return err
+	}
+	err = keys.WriteOpenSSLX25519PrivateKey(privateKeyFile, privateKey)
+	if err != nil {
+		return err
+	}
+	err = privateKeyFile.Close()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func fileExists(fileName string) bool {
+	info, err := os.Stat(fileName)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }
