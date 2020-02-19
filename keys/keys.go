@@ -1,3 +1,5 @@
+// Package keys holds helper methods to generate/read/convert/write keys for Crypt4GH.
+// Supported keys: OpenSSH (Ed25519), OpenSSL (Ed25519, X25519), Crypt4GH (X25519).
 package keys
 
 import (
@@ -31,6 +33,7 @@ const (
 var ed25519Algorithm = []int{1, 3, 101, 112}
 var x25519Algorithm = []int{1, 3, 101, 110}
 
+// GenerateKeyPair method generates X25519 key pair.
 func GenerateKeyPair() (publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte, err error) {
 	edPublicKey, edPrivateKey, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -54,6 +57,8 @@ type openSSLPrivateKey struct {
 	Payload   []byte
 }
 
+// ReadPrivateKey reads private key from io.Reader.
+// Supported keys: OpenSSH (Ed25519), OpenSSL (Ed25519, X25519), Crypt4GH (X25519).
 func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20poly1305.KeySize]byte, err error) {
 	var allBytes []byte
 	allBytes, err = ioutil.ReadAll(reader)
@@ -200,6 +205,8 @@ type openSSLPublicKey struct {
 	Payload   asn1.BitString
 }
 
+// ReadPublicKey reads public key from io.Reader.
+// Supported keys: OpenSSH (Ed25519), OpenSSL (Ed25519, X25519), Crypt4GH (X25519).
 func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, err error) {
 	var allBytes []byte
 	allBytes, err = ioutil.ReadAll(reader)
@@ -240,6 +247,7 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 	return publicKey, nil
 }
 
+// WriteOpenSSLX25519PrivateKey writes X25519 public key to io.Writer in OpenSSL format.
 func WriteOpenSSLX25519PrivateKey(writer io.Writer, privateKey [chacha20poly1305.KeySize]byte) error {
 	marshalledPayload, err := asn1.Marshal(privateKey[:])
 	if err != nil {
@@ -261,6 +269,7 @@ func WriteOpenSSLX25519PrivateKey(writer io.Writer, privateKey [chacha20poly1305
 	return pem.Encode(writer, &block)
 }
 
+// WriteOpenSSLX25519PublicKey writes X25519 public key to io.Writer in OpenSSL format.
 func WriteOpenSSLX25519PublicKey(writer io.Writer, publicKey [chacha20poly1305.KeySize]byte) error {
 	openSSLPrivateKey := openSSLPublicKey{
 		Algorithm: pkix.AlgorithmIdentifier{Algorithm: x25519Algorithm},
@@ -278,11 +287,13 @@ func WriteOpenSSLX25519PublicKey(writer io.Writer, publicKey [chacha20poly1305.K
 	return pem.Encode(writer, &block)
 }
 
+// DerivePublicKey derives public key from X25519 private key.
 func DerivePublicKey(privateKey [chacha20poly1305.KeySize]byte) (publicKey [chacha20poly1305.KeySize]byte) {
 	curve25519.ScalarBaseMult(&publicKey, &privateKey)
 	return
 }
 
+// GenerateReaderSharedKey generates shared key for recipient, based on ECDH and BLAKE2 SHA-512.
 func GenerateReaderSharedKey(privateKey [chacha20poly1305.KeySize]byte, publicKey [chacha20poly1305.KeySize]byte) (*[]byte, error) {
 	derivedPublicKey := DerivePublicKey(privateKey)
 	diffieHellmanKey, err := curve25519.X25519(privateKey[:], publicKey[:])
@@ -292,6 +303,7 @@ func GenerateReaderSharedKey(privateKey [chacha20poly1305.KeySize]byte, publicKe
 	return generateSharedKey(diffieHellmanKey, derivedPublicKey, publicKey)
 }
 
+// GenerateWriterSharedKey generates shared key for sender, based on ECDH and BLAKE2 SHA-512.
 func GenerateWriterSharedKey(privateKey [chacha20poly1305.KeySize]byte, publicKey [chacha20poly1305.KeySize]byte) (*[]byte, error) {
 	derivedPublicKey := DerivePublicKey(privateKey)
 	diffieHellmanKey, err := curve25519.X25519(privateKey[:], publicKey[:])
