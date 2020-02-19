@@ -14,11 +14,15 @@ import (
 	"strings"
 )
 
+var (
+	version = "dev"
+	date    = "unknown"
+)
+
 const (
 	generate = "generate"
 	encrypt  = "encrypt"
 	decrypt  = "decrypt"
-	version  = "version"
 )
 
 var generateOptions struct {
@@ -47,6 +51,11 @@ func main() {
 		generateOptionsParser.WriteHelp(os.Stdout)
 		encryptOptionsParser.WriteHelp(os.Stdout)
 		decryptOptionsParser.WriteHelp(os.Stdout)
+		os.Exit(0)
+	}
+	if args[1] == "-v" || args[1] == "--version" {
+		fmt.Println(aurora.Blue(version))
+		fmt.Println(aurora.Yellow(date))
 		os.Exit(0)
 	}
 	commandName := args[1]
