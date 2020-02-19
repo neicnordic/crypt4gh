@@ -83,10 +83,15 @@ func main() {
 		var privateKey [chacha20poly1305.KeySize]byte
 		privateKey, err = keys.ReadPrivateKey(secretKeyFile, nil)
 		if err != nil {
-			password, err := promptPassword(4)
+			password, err := promptPassword()
 			if err != nil {
 				log.Fatal(aurora.Red(err))
 			}
+			err = secretKeyFile.Close()
+			if err != nil {
+				log.Fatal(aurora.Red(err))
+			}
+			secretKeyFile, _ := os.Open(encryptOptions.SecretKeyFileName)
 			privateKey, err = keys.ReadPrivateKey(secretKeyFile, []byte(password))
 			if err != nil {
 				log.Fatal(aurora.Red(err))
@@ -124,7 +129,7 @@ func main() {
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
-		fmt.Println(aurora.Green(fmt.Sprintf("Success, %v bytes encrypted!", written)))
+		fmt.Println(aurora.Green(fmt.Sprintf("Success! %v bytes encrypted, file name: %v", written, outFileName)))
 	case decrypt:
 		_, err := decryptOptionsParser.Parse()
 		if err != nil {
@@ -179,16 +184,9 @@ func promptYesNo(message string) {
 	}
 }
 
-func promptPassword(minLength int) (password string, err error) {
-	validate := func(input string) error {
-		if len(input) < minLength {
-			return fmt.Errorf("password is too short: min length is %v", minLength)
-		}
-		return nil
-	}
+func promptPassword() (password string, err error) {
 	prompt := promptui.Prompt{
-		Label:    "Enter the password to unlock the key",
-		Validate: validate,
+		Label: "Enter the password to unlock the key",
 	}
 	return prompt.Run()
 }
