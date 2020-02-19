@@ -1,3 +1,4 @@
+// Incorporates three KDFs (https://en.wikipedia.org/wiki/Key_derivation_function) used by Crypt4GH
 package kdf
 
 import (
@@ -8,12 +9,14 @@ import (
 	"golang.org/x/crypto/scrypt"
 )
 
+// Map of KDF names to implementations
 var KDFS = map[string]KDF{
 	"scrypt":             sCrypt{},
 	"bcrypt":             bCrypt{},
 	"pbkdf2_hmac_sha256": pbkdf2sha512{},
 }
 
+// KDF interface holding "Derive" method.
 type KDF interface {
 	Derive(rounds int, password []byte, salt []byte) (derivedKey []byte, err error)
 }
