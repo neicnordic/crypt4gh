@@ -380,3 +380,27 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestReencryptionStatic(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt.c4gh")
+	if err != nil {
+		t.Error(err)
+	}
+	keyFile, err := os.Open("../test/crypt4gh-x25519-enc.sec.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(keyFile, []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	reader, err := NewCrypt4GHReader(inFile, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	all, err := ioutil.ReadAll(reader)
+	if err != nil {
+		t.Error(err)
+	}
+	println(string(all))
+}

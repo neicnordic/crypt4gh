@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 )
 
 const (
@@ -68,34 +69,13 @@ func main() {
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
-		publicKeyFile, err := os.Open(encryptOptions.PublicKeyFileName)
+		publicKey, err := readPublicKey(encryptOptions.PublicKeyFileName)
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
-		publicKey, err := keys.ReadPublicKey(publicKeyFile)
+		privateKey, err := readPrivateKey(encryptOptions.SecretKeyFileName)
 		if err != nil {
 			log.Fatal(aurora.Red(err))
-		}
-		secretKeyFile, err := os.Open(encryptOptions.SecretKeyFileName)
-		if err != nil {
-			log.Fatal(aurora.Red(err))
-		}
-		var privateKey [chacha20poly1305.KeySize]byte
-		privateKey, err = keys.ReadPrivateKey(secretKeyFile, nil)
-		if err != nil {
-			password, err := promptPassword()
-			if err != nil {
-				log.Fatal(aurora.Red(err))
-			}
-			err = secretKeyFile.Close()
-			if err != nil {
-				log.Fatal(aurora.Red(err))
-			}
-			secretKeyFile, _ := os.Open(encryptOptions.SecretKeyFileName)
-			privateKey, err = keys.ReadPrivateKey(secretKeyFile, []byte(password))
-			if err != nil {
-				log.Fatal(aurora.Red(err))
-			}
 		}
 		inFile, err := os.Open(encryptOptions.FileName)
 		if err != nil {
@@ -109,7 +89,7 @@ func main() {
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
-		crypt4GHWriter, err := streaming.NewCrypt4GHWriter(outFile, publicKey, privateKey, nil)
+		crypt4GHWriter, err := streaming.NewCrypt4GHWriter(outFile, privateKey, publicKey, nil)
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
@@ -135,9 +115,82 @@ func main() {
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
+		privateKey, err := readPrivateKey(decryptOptions.SecretKeyFileName)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		inFile, err := os.Open(decryptOptions.FileName)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		var outFileName string
+		if strings.HasSuffix(decryptOptions.FileName, ".c4gh") {
+			outFileName = strings.TrimSuffix(decryptOptions.FileName, ".c4gh")
+		} else {
+			outFileName = decryptOptions.FileName + ".dec"
+		}
+		if fileExists(outFileName) {
+			promptYesNo(fmt.Sprintf("File with name '%v' already exists. Please, confirm overwriting", outFileName))
+		}
+		outFile, err := os.Create(outFileName)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		crypt4GHReader, err := streaming.NewCrypt4GHReader(inFile, privateKey, nil)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		written, err := io.Copy(outFile, crypt4GHReader)
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		err = inFile.Close()
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		err = outFile.Close()
+		if err != nil {
+			log.Fatal(aurora.Red(err))
+		}
+		fmt.Println(aurora.Green(fmt.Sprintf("Success! %v bytes decrypted, file name: %v", written, outFileName)))
 	default:
 		log.Fatal(aurora.Red(fmt.Sprintf("command '%v' is not recognized", commandName)))
 	}
+}
+
+func readPublicKey(fileName string) (publicKey [chacha20poly1305.KeySize]byte, err error) {
+	var publicKeyFile *os.File
+	publicKeyFile, err = os.Open(encryptOptions.PublicKeyFileName)
+	if err != nil {
+		return
+	}
+	return keys.ReadPublicKey(publicKeyFile)
+}
+
+func readPrivateKey(fileName string) (privateKey [chacha20poly1305.KeySize]byte, err error) {
+	var secretKeyFile *os.File
+	secretKeyFile, err = os.Open(fileName)
+	if err != nil {
+		return
+	}
+	privateKey, err = keys.ReadPrivateKey(secretKeyFile, nil)
+	if err != nil {
+		var password string
+		password, err = promptPassword()
+		if err != nil {
+			return
+		}
+		err = secretKeyFile.Close()
+		if err != nil {
+			return
+		}
+		secretKeyFile, _ = os.Open(fileName)
+		privateKey, err = keys.ReadPrivateKey(secretKeyFile, []byte(password))
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 
 func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte) error {
@@ -187,6 +240,7 @@ func promptYesNo(message string) {
 func promptPassword() (password string, err error) {
 	prompt := promptui.Prompt{
 		Label: "Enter the password to unlock the key",
+		Mask:  '*',
 	}
 	return prompt.Run()
 }
