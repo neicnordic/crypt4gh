@@ -375,7 +375,7 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 		t.Error(err)
 	}
 	expectedText := strings.TrimSpace(string(firstLine) + "\n" + string(secondLine))
-	actualText := strings.TrimSpace(string(all[:]))
+	actualText := strings.TrimSpace(string(all))
 	if !strings.EqualFold(expectedText, actualText) {
 		t.Fail()
 	}
