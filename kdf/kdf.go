@@ -1,4 +1,4 @@
-// Incorporates three KDFs (https://en.wikipedia.org/wiki/Key_derivation_function) used by Crypt4GH
+// Package kdf incorporates three KDFs (https://en.wikipedia.org/wiki/Key_derivation_function) used by Crypt4GH
 package kdf
 
 import (
@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/scrypt"
 )
 
-// Map of KDF names to implementations
+// KDFS is a map of KDF names to implementations.
 var KDFS = map[string]KDF{
 	"scrypt":             sCrypt{},
 	"bcrypt":             bCrypt{},
