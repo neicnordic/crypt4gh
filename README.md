@@ -17,10 +17,12 @@
 Current version of specs can be found [here](http://samtools.github.io/hts-specs/crypt4gh.pdf).
 
 ## Installation
-To install console app you can use the following script (assuming you are using `bash`):
+To install the latest version of the console app you can use the following one-liner (assuming you are using `bash`):
 ```
-TODO
+curl -fsSL https://raw.githubusercontent.com/elixir-oslo/crypt4gh/master/install.sh | sh
 ```
+
+Alternatively, go to the [releases page](https://github.com/elixir-oslo/crypt4gh/releases) and download the desired binary manually (for example, `.exe` file for Windows).
 
 ## Usage
 ```
