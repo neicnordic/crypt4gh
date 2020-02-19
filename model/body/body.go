@@ -1,3 +1,4 @@
+// Package body contains structure and related methods for representing Crypt4GH data segments.
 package body
 
 import (
@@ -8,12 +9,14 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
+// Segment structure represents Crypt4GH data segment.
 type Segment struct {
 	DataEncryptionParametersHeaderPackets []headers.DataEncryptionParametersHeaderPacket
 	Nonce                                 *[chacha20poly1305.NonceSize]byte
 	UnencryptedData                       []byte
 }
 
+// MarshalBinary implements encoding.BinaryMarshaler.MarshalBinary() method.
 func (s Segment) MarshalBinary() (data []byte, err error) {
 	dataEncryptionParametersHeaderPacket := s.DataEncryptionParametersHeaderPackets[0]
 	switch dataEncryptionParametersHeaderPacket.DataEncryptionMethod {
@@ -36,6 +39,7 @@ func (s Segment) MarshalBinary() (data []byte, err error) {
 	return nil, fmt.Errorf("unknown data encryption method: %v", dataEncryptionParametersHeaderPacket.DataEncryptionMethod)
 }
 
+// UnmarshalBinary implements encoding.BinaryMarshaler.UnmarshalBinary() method.
 func (s *Segment) UnmarshalBinary(encryptedSegment []byte) error {
 	for _, dataEncryptionParametersHeaderPacket := range s.DataEncryptionParametersHeaderPackets {
 		switch dataEncryptionParametersHeaderPacket.DataEncryptionMethod {
