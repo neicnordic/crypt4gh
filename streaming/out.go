@@ -1,3 +1,4 @@
+// Package streaming contains writer and reader implementing Crypt4GH encryption and decryption correspondingly.
 package streaming
 
 import (
@@ -10,6 +11,7 @@ import (
 	"io"
 )
 
+// Crypt4GHWriter structure implements io.WriteCloser and io.ByteWriter.
 type Crypt4GHWriter struct {
 	writer io.Writer
 
@@ -18,6 +20,7 @@ type Crypt4GHWriter struct {
 	buffer                               bytes.Buffer
 }
 
+// NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and corresponding keys.
 func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKey [chacha20poly1305.KeySize]byte, dataEditListHeaderPacket *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
 	crypt4GHWriter := Crypt4GHWriter{}
 	var sharedKey [chacha20poly1305.KeySize]byte
@@ -67,6 +70,7 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 	return &crypt4GHWriter, nil
 }
 
+// Write method implements io.Writer.Write.
 func (c *Crypt4GHWriter) Write(p []byte) (n int, err error) {
 	written := 0
 	for ; written < len(p); written++ {
@@ -77,6 +81,7 @@ func (c *Crypt4GHWriter) Write(p []byte) (n int, err error) {
 	return written, nil
 }
 
+// WriteByte method implements io.ByteWriter.WriteByte.
 func (c *Crypt4GHWriter) WriteByte(b byte) error {
 	if c.buffer.Len() == c.buffer.Cap() {
 		if err := c.flushBuffer(); err != nil {
@@ -86,6 +91,7 @@ func (c *Crypt4GHWriter) WriteByte(b byte) error {
 	return c.buffer.WriteByte(b)
 }
 
+// Close method implements io.Closer.Close.
 func (c *Crypt4GHWriter) Close() error {
 	return c.flushBuffer()
 }

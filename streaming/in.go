@@ -1,3 +1,4 @@
+// Package streaming contains writer and reader implementing Crypt4GH encryption and decryption correspondingly.
 package streaming
 
 import (
@@ -146,6 +147,7 @@ func (c *crypt4GHInternalReader) fillBuffer() error {
 	return nil
 }
 
+// Crypt4GHReader structure implements io.Reader and io.ByteReader.
 type Crypt4GHReader struct {
 	reader crypt4GHInternalReader
 
@@ -154,6 +156,7 @@ type Crypt4GHReader struct {
 	bytesRead       uint64
 }
 
+// NewCrypt4GHReader method constructs streaming.Crypt4GHReader instance from io.Reader and corresponding key.
 func NewCrypt4GHReader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHReader, error) {
 	internalReader, err := newCrypt4GHInternalReader(reader, readerPrivateKey)
 	if err != nil {
@@ -168,7 +171,7 @@ func NewCrypt4GHReader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeyS
 	if dataEditList != nil {
 		skip := true
 		for i := uint32(0); i < dataEditList.NumberLengths; i++ {
-			crypt4GHReader.lengths.PushBack(DataEditListEntry{
+			crypt4GHReader.lengths.PushBack(dataEditListEntry{
 				length: dataEditList.Lengths[i],
 				skip:   skip,
 			})
@@ -177,7 +180,7 @@ func NewCrypt4GHReader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeyS
 	} else if internalReader.dataEditList != nil {
 		skip := true
 		for i := uint32(0); i < internalReader.dataEditList.NumberLengths; i++ {
-			crypt4GHReader.lengths.PushBack(DataEditListEntry{
+			crypt4GHReader.lengths.PushBack(dataEditListEntry{
 				length: internalReader.dataEditList.Lengths[i],
 				skip:   skip,
 			})
@@ -187,6 +190,7 @@ func NewCrypt4GHReader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeyS
 	return &crypt4GHReader, nil
 }
 
+// Read method implements io.Reader.Read.
 func (c *Crypt4GHReader) Read(p []byte) (n int, err error) {
 	readByte, err := c.ReadByte()
 	if err != nil {
@@ -204,18 +208,18 @@ func (c *Crypt4GHReader) Read(p []byte) (n int, err error) {
 	return
 }
 
+// ReadByte method implements io.ByteReader.ReadByte.
 func (c *Crypt4GHReader) ReadByte() (byte, error) {
 	if c.useDataEditList {
 		return c.readByteWithDataEditList()
-	} else {
-		return c.reader.ReadByte()
 	}
+	return c.reader.ReadByte()
 }
 
 func (c *Crypt4GHReader) readByteWithDataEditList() (byte, error) {
 	if c.lengths.Len() != 0 {
 		element := c.lengths.Front()
-		dataEditListEntry := element.Value.(DataEditListEntry)
+		dataEditListEntry := element.Value.(dataEditListEntry)
 		if dataEditListEntry.skip {
 			_, err := c.reader.Discard(int(dataEditListEntry.length))
 			c.lengths.Remove(element)
@@ -226,36 +230,35 @@ func (c *Crypt4GHReader) readByteWithDataEditList() (byte, error) {
 	}
 	if c.lengths.Len() != 0 {
 		element := c.lengths.Front()
-		dataEditListEntry := element.Value.(DataEditListEntry)
+		dataEditListEntry := element.Value.(dataEditListEntry)
 		length := dataEditListEntry.length
 		if c.bytesRead == length {
 			c.lengths.Remove(element)
 			c.bytesRead = 0
 			return c.readByteWithDataEditList()
-		} else {
-			c.bytesRead++
-			return c.reader.ReadByte()
 		}
+		c.bytesRead++
+		return c.reader.ReadByte()
 	}
 	return 0, io.EOF
 }
 
+// Discard method skips the next n bytes, returning the number of bytes discarded.
 func (c *Crypt4GHReader) Discard(n int) (discarded int, err error) {
 	if n <= 0 {
 		return
 	}
 	if c.useDataEditList {
 		return c.discardWithDataEditList(n)
-	} else {
-		return c.reader.Discard(n)
 	}
+	return c.reader.Discard(n)
 }
 
 func (c *Crypt4GHReader) discardWithDataEditList(n int) (int, error) {
 	bytesDiscarded := 0
 	if c.lengths.Len() != 0 {
 		element := c.lengths.Front()
-		dataEditListEntry := element.Value.(DataEditListEntry)
+		dataEditListEntry := element.Value.(dataEditListEntry)
 		if dataEditListEntry.skip {
 			discarded, err := c.reader.Discard(int(dataEditListEntry.length))
 			c.lengths.Remove(element)
@@ -272,22 +275,21 @@ func (c *Crypt4GHReader) discardWithDataEditList(n int) (int, error) {
 				if uint64(n) <= bytesLeftToRead {
 					c.bytesRead += uint64(n)
 					return c.reader.Discard(n)
-				} else {
-					discarded, err := c.reader.Discard(int(bytesLeftToRead))
-					bytesDiscarded += discarded
-					n -= int(bytesLeftToRead)
-					c.lengths.Remove(element)
-					c.bytesRead = 0
-					if err != nil {
-						return bytesDiscarded, err
-					}
+				}
+				discarded, err := c.reader.Discard(int(bytesLeftToRead))
+				bytesDiscarded += discarded
+				n -= int(bytesLeftToRead)
+				c.lengths.Remove(element)
+				c.bytesRead = 0
+				if err != nil {
+					return bytesDiscarded, err
 				}
 			}
 		}
 	}
 	for c.lengths.Len() != 0 && n != 0 {
 		element := c.lengths.Front()
-		dataEditListEntry := element.Value.(DataEditListEntry)
+		dataEditListEntry := element.Value.(dataEditListEntry)
 		if dataEditListEntry.skip {
 			discarded, err := c.reader.Discard(int(dataEditListEntry.length))
 			c.lengths.Remove(element)
@@ -304,21 +306,20 @@ func (c *Crypt4GHReader) discardWithDataEditList(n int) (int, error) {
 				c.bytesRead += uint64(discarded)
 				bytesDiscarded += discarded
 				return bytesDiscarded, nil
-			} else {
-				discarded, err := c.reader.Discard(int(length))
-				bytesDiscarded += discarded
-				n -= int(length)
-				c.lengths.Remove(element)
-				if err != nil {
-					return bytesDiscarded, err
-				}
+			}
+			discarded, err := c.reader.Discard(int(length))
+			bytesDiscarded += discarded
+			n -= int(length)
+			c.lengths.Remove(element)
+			if err != nil {
+				return bytesDiscarded, err
 			}
 		}
 	}
 	return bytesDiscarded, nil
 }
 
-type DataEditListEntry struct {
+type dataEditListEntry struct {
 	length uint64
 	skip   bool
 }
