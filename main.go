@@ -273,19 +273,19 @@ func generateHelpMessage() string {
 
 	buf := bytes.Buffer{}
 	generateOptionsParser.WriteHelp(&buf)
-	generateUsage := string(buf.Bytes())
+	generateUsage := buf.String()
 	generateUsage = strings.Replace(generateUsage, usageString, "", 1)
 	generateUsage = strings.Replace(generateUsage, applicationOptions, " "+generate, 1)
 
 	buf.Reset()
 	encryptOptionsParser.WriteHelp(&buf)
-	encryptUsage := string(buf.Bytes())
+	encryptUsage := buf.String()
 	encryptUsage = strings.Replace(encryptUsage, usageString, "", 1)
 	encryptUsage = strings.Replace(encryptUsage, applicationOptions, " "+encrypt, 1)
 
 	buf.Reset()
 	decryptOptionsParser.WriteHelp(&buf)
-	decryptUsage := string(buf.Bytes())
+	decryptUsage := buf.String()
 	decryptUsage = strings.Replace(decryptUsage, usageString, "", 1)
 	decryptUsage = strings.Replace(decryptUsage, applicationOptions, " "+decrypt, 1)
 

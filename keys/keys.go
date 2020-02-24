@@ -342,11 +342,14 @@ func WriteCrypt4GHX25519PrivateKey(writer io.Writer, privateKey [chacha20poly130
 	}
 	length = uint16(len(supportedCipherName))
 	err = binary.Write(&buf, binary.BigEndian, length)
+	if err != nil {
+		return err
+	}
 	err = binary.Write(&buf, binary.BigEndian, []byte(supportedCipherName))
 	if err != nil {
 		return err
 	}
-	nonceWithKey := append(nonce[:], encryptedPrivateKey[:]...)
+	nonceWithKey := append(nonce[:], encryptedPrivateKey...)
 	length = uint16(len(nonceWithKey))
 	err = binary.Write(&buf, binary.BigEndian, length)
 	if err != nil {
