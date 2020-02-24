@@ -30,7 +30,9 @@ $ crypt4gh
 crypt4gh [generate | encrypt | decrypt] <args>
 
  generate:
-  -n, --name= Key pair name
+  -n, --name=                     Key pair name
+  -f, --format=[openssl|crypt4gh] Key pair format
+  -p, --password=                 Password to lock Crypt4GH private key (will be prompted afterwords if skipped)
 
  encrypt:
   -f, --file=FILE      File to encrypt
