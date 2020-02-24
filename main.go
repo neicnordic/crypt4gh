@@ -29,8 +29,9 @@ const (
 )
 
 var generateOptions struct {
-	Name   string `short:"n" long:"name" description:"Key pair name" required:"true"`
-	Format string `short:"f" long:"format" description:"Key pair format" choice:"openssl" choice:"crypt4gh" default:"crypt4gh"`
+	Name     string `short:"n" long:"name" description:"Key pair name" required:"true"`
+	Format   string `short:"f" long:"format" description:"Key pair format" choice:"openssl" choice:"crypt4gh" default:"crypt4gh"`
+	Password string `short:"p" long:"password" description:"Password to lock Crypt4GH private key (will be prompted afterwords if skipped)"`
 }
 
 var generateOptionsParser = flags.NewParser(&generateOptions, flags.None)
@@ -76,7 +77,7 @@ func main() {
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
-		err = writeKeyPair(generateOptions.Name, publicKey, privateKey, generateOptions.Format)
+		err = writeKeyPair(generateOptions.Name, publicKey, privateKey, generateOptions.Format, generateOptions.Password)
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
@@ -209,7 +210,7 @@ func readPrivateKey(fileName string) (privateKey [chacha20poly1305.KeySize]byte,
 	return
 }
 
-func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte, format string) error {
+func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte, format string, password string) error {
 	publicKeyFileName := name + ".pub.pem"
 	privateKeyFileName := name + ".sec.pem"
 	if fileExists(publicKeyFileName) || fileExists(privateKeyFileName) {
@@ -240,9 +241,11 @@ func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, private
 			return err
 		}
 	} else {
-		password, err := promptPassword("Enter the password to lock the key")
-		if err != nil {
-			return err
+		if password == "" {
+			password, err = promptPassword("Enter the password to lock the key")
+			if err != nil {
+				return err
+			}
 		}
 		if err = keys.WriteCrypt4GHX25519PrivateKey(privateKeyFile, privateKey, []byte(password)); err != nil {
 			return err
