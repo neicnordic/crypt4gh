@@ -29,7 +29,8 @@ const (
 )
 
 var generateOptions struct {
-	Name string `short:"n" long:"name" description:"Key pair name" required:"true"`
+	Name   string `short:"n" long:"name" description:"Key pair name" required:"true"`
+	Format string `short:"f" long:"format" description:"Key pair format" choice:"openssl" choice:"crypt4gh" default:"crypt4gh"`
 }
 
 var generateOptionsParser = flags.NewParser(&generateOptions, flags.None)
@@ -75,7 +76,7 @@ func main() {
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
-		err = writeKeyPair(generateOptions.Name, publicKey, privateKey)
+		err = writeKeyPair(generateOptions.Name, publicKey, privateKey, generateOptions.Format)
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
@@ -191,7 +192,7 @@ func readPrivateKey(fileName string) (privateKey [chacha20poly1305.KeySize]byte,
 	privateKey, err = keys.ReadPrivateKey(secretKeyFile, nil)
 	if err != nil {
 		var password string
-		password, err = promptPassword()
+		password, err = promptPassword("Enter the password to unlock the key")
 		if err != nil {
 			return
 		}
@@ -208,7 +209,7 @@ func readPrivateKey(fileName string) (privateKey [chacha20poly1305.KeySize]byte,
 	return
 }
 
-func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte) error {
+func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte, format string) error {
 	publicKeyFileName := name + ".pub.pem"
 	privateKeyFileName := name + ".sec.pem"
 	if fileExists(publicKeyFileName) || fileExists(privateKeyFileName) {
@@ -218,24 +219,36 @@ func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, private
 	if err != nil {
 		return err
 	}
-	err = keys.WriteOpenSSLX25519PublicKey(publicKeyFile, publicKey)
-	if err != nil {
-		return err
+	if format == "openssl" {
+		if err = keys.WriteOpenSSLX25519PublicKey(publicKeyFile, publicKey); err != nil {
+			return err
+		}
+	} else {
+		if err = keys.WriteCrypt4GHX25519PublicKey(publicKeyFile, publicKey); err != nil {
+			return err
+		}
 	}
-	err = publicKeyFile.Close()
-	if err != nil {
+	if err = publicKeyFile.Close(); err != nil {
 		return err
 	}
 	privateKeyFile, err := os.Create(privateKeyFileName)
 	if err != nil {
 		return err
 	}
-	err = keys.WriteOpenSSLX25519PrivateKey(privateKeyFile, privateKey)
-	if err != nil {
-		return err
+	if format == "openssl" {
+		if err = keys.WriteOpenSSLX25519PrivateKey(privateKeyFile, privateKey); err != nil {
+			return err
+		}
+	} else {
+		password, err := promptPassword("Enter the password to lock the key")
+		if err != nil {
+			return err
+		}
+		if err = keys.WriteCrypt4GHX25519PrivateKey(privateKeyFile, privateKey, []byte(password)); err != nil {
+			return err
+		}
 	}
-	err = privateKeyFile.Close()
-	if err != nil {
+	if err = privateKeyFile.Close(); err != nil {
 		return err
 	}
 	return nil
@@ -252,9 +265,9 @@ func promptYesNo(message string) {
 	}
 }
 
-func promptPassword() (password string, err error) {
+func promptPassword(message string) (password string, err error) {
 	prompt := promptui.Prompt{
-		Label: "Enter the password to unlock the key",
+		Label: message,
 		Mask:  '*',
 	}
 	return prompt.Run()
