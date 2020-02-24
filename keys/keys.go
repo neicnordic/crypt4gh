@@ -5,6 +5,7 @@ package keys
 import (
 	"bytes"
 	"crypto/cipher"
+	"crypto/rand"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/binary"
@@ -23,11 +24,13 @@ import "golang.org/x/crypto/blake2b"
 import "github.com/elixir-oslo/crypt4gh/kdf"
 
 const (
-	privateKeyHeader    = "PRIVATE KEY"
-	publicKeyHeader     = "PUBLIC KEY"
-	magic               = "c4gh-v1"
-	none                = "none"
-	supportedCipherName = "chacha20_poly1305"
+	openSSLPrivateKeyHeader  = "PRIVATE KEY"
+	openSSLPublicKeyHeader   = "PUBLIC KEY"
+	crypt4GHPrivateKeyHeader = "CRYPT4GH ENCRYPTED PRIVATE KEY"
+	crypt4GHPublicKeyHeader  = "CRYPT4GH PUBLIC KEY"
+	magic                    = "c4gh-v1"
+	none                     = "none"
+	supportedCipherName      = "chacha20_poly1305"
 )
 
 var ed25519Algorithm = []int{1, 3, 101, 112}
@@ -262,7 +265,7 @@ func WriteOpenSSLX25519PrivateKey(writer io.Writer, privateKey [chacha20poly1305
 		return err
 	}
 	block := pem.Block{
-		Type:    privateKeyHeader,
+		Type:    openSSLPrivateKeyHeader,
 		Headers: nil,
 		Bytes:   marshalledPrivateKey,
 	}
@@ -280,9 +283,94 @@ func WriteOpenSSLX25519PublicKey(writer io.Writer, publicKey [chacha20poly1305.K
 		return err
 	}
 	block := pem.Block{
-		Type:    publicKeyHeader,
+		Type:    openSSLPublicKeyHeader,
 		Headers: nil,
 		Bytes:   marshalledPublicKey,
+	}
+	return pem.Encode(writer, &block)
+}
+
+// WriteCrypt4GHX25519PrivateKey writes X25519 public key to io.Writer in Crypt4GH format.
+func WriteCrypt4GHX25519PrivateKey(writer io.Writer, privateKey [chacha20poly1305.KeySize]byte, password []byte) error {
+	kdfName := "scrypt"
+
+	salt := [16]byte{}
+	_, err := rand.Reader.Read(salt[:])
+	if err != nil {
+		return err
+	}
+	derivedKey, err := kdf.KDFS[kdfName].Derive(0, password, salt[:])
+	if err != nil {
+		return err
+	}
+
+	nonce := [chacha20poly1305.NonceSize]byte{}
+	_, err = rand.Reader.Read(nonce[:])
+	if err != nil {
+		return err
+	}
+	aead, err := chacha20poly1305.New(derivedKey)
+	if err != nil {
+		return err
+	}
+	encryptedPrivateKey := aead.Seal(nil, nonce[:], privateKey[:], nil)
+
+	buf := bytes.Buffer{}
+	_, err = buf.Write([]byte(magic))
+	if err != nil {
+		return err
+	}
+	length := uint16(len(kdfName))
+	err = binary.Write(&buf, binary.BigEndian, length)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(&buf, binary.BigEndian, []byte(kdfName))
+	if err != nil {
+		return err
+	}
+	rounds := [4]byte{}
+	roundsWithSalt := append(rounds[:], salt[:]...)
+	length = uint16(len(roundsWithSalt))
+	err = binary.Write(&buf, binary.BigEndian, length)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(&buf, binary.BigEndian, roundsWithSalt)
+	if err != nil {
+		return err
+	}
+	length = uint16(len(supportedCipherName))
+	err = binary.Write(&buf, binary.BigEndian, length)
+	err = binary.Write(&buf, binary.BigEndian, []byte(supportedCipherName))
+	if err != nil {
+		return err
+	}
+	nonceWithKey := append(nonce[:], encryptedPrivateKey[:]...)
+	length = uint16(len(nonceWithKey))
+	err = binary.Write(&buf, binary.BigEndian, length)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(&buf, binary.BigEndian, nonceWithKey)
+	if err != nil {
+		return err
+	}
+
+	block := pem.Block{
+		Type:    crypt4GHPrivateKeyHeader,
+		Headers: nil,
+		Bytes:   buf.Bytes(),
+	}
+	return pem.Encode(writer, &block)
+}
+
+// WriteCrypt4GHX25519PublicKey writes X25519 public key to io.Writer in Crypt4GH format.
+func WriteCrypt4GHX25519PublicKey(writer io.Writer, publicKey [chacha20poly1305.KeySize]byte) error {
+	block := pem.Block{
+		Type:    crypt4GHPublicKeyHeader,
+		Headers: nil,
+		Bytes:   publicKey[:],
 	}
 	return pem.Encode(writer, &block)
 }

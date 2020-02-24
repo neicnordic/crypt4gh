@@ -184,6 +184,56 @@ func TestWriteOpenSSLX25519PublicKey(t *testing.T) {
 	}
 }
 
+func TestWriteCrypt4GHX25519PrivateKey(t *testing.T) {
+	keyFile, err := os.Open("../test/crypt4gh-x25519-enc.sec.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	privateKey, err := ReadPrivateKey(keyFile, []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	buf := bytes.Buffer{}
+	err = WriteCrypt4GHX25519PrivateKey(&buf, privateKey, []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	privateKeyReconstructed, err := ReadPrivateKey(&buf, []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(privateKeyReconstructed[:], privateKey[:]) {
+		t.Fail()
+	}
+}
+
+func TestWriteCrypt4GHX25519PublicKey(t *testing.T) {
+	keyFile, err := os.Open("../test/crypt4gh-x25519-enc.pub.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	publicKey, err := ReadPublicKey(keyFile)
+	if err != nil {
+		t.Error(err)
+	}
+	buf := bytes.Buffer{}
+	err = WriteCrypt4GHX25519PublicKey(&buf, publicKey)
+	if err != nil {
+		t.Error(err)
+	}
+	keyFile, err = os.Open("../test/crypt4gh-x25519-enc.pub.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	keyFileBytes, err := ioutil.ReadAll(keyFile)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(keyFileBytes, buf.Bytes()) {
+		t.Fail()
+	}
+}
+
 func TestGenerateSharedKey(t *testing.T) {
 	tests := []struct {
 		name           string
