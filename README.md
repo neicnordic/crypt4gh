@@ -1,5 +1,5 @@
 # crypt4gh
-[![Build Status](https://github.com/elixir-oslo/crypt4gh/workflows/Go/badge.svg)](https://github.com/uio-bmi/lega-uploader/actions)
+[![Build Status](https://github.com/elixir-oslo/crypt4gh/workflows/Go/badge.svg)](https://github.com/elixir-oslo/crypt4gh/actions)
 [![GoDoc](https://godoc.org/github.com/elixir-oslo/crypt4gh?status.svg)](https://pkg.go.dev/github.com/elixir-oslo/crypt4gh?tab=subdirectories)
 [![CodeFactor](https://www.codefactor.io/repository/github/elixir-oslo/crypt4gh/badge)](https://www.codefactor.io/repository/github/elixir-oslo/crypt4gh)
 [![Go Report Card](https://goreportcard.com/badge/github.com/elixir-oslo/crypt4gh)](https://goreportcard.com/report/github.com/elixir-oslo/crypt4gh)
