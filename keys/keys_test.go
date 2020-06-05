@@ -139,8 +139,8 @@ func TestWriteOpenSSLX25519PrivateKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	buf := bytes.Buffer{}
-	err = WriteOpenSSLX25519PrivateKey(&buf, privateKey)
+	buffer := bytes.Buffer{}
+	err = WriteOpenSSLX25519PrivateKey(&buffer, privateKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -152,7 +152,7 @@ func TestWriteOpenSSLX25519PrivateKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !bytes.Equal(keyFileBytes, buf.Bytes()) {
+	if !bytes.Equal(keyFileBytes, buffer.Bytes()) {
 		t.Fail()
 	}
 }
@@ -166,8 +166,8 @@ func TestWriteOpenSSLX25519PublicKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	buf := bytes.Buffer{}
-	err = WriteOpenSSLX25519PublicKey(&buf, publicKey)
+	buffer := bytes.Buffer{}
+	err = WriteOpenSSLX25519PublicKey(&buffer, publicKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -179,7 +179,7 @@ func TestWriteOpenSSLX25519PublicKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !bytes.Equal(keyFileBytes, buf.Bytes()) {
+	if !bytes.Equal(keyFileBytes, buffer.Bytes()) {
 		t.Fail()
 	}
 }
@@ -193,12 +193,12 @@ func TestWriteCrypt4GHX25519PrivateKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	buf := bytes.Buffer{}
-	err = WriteCrypt4GHX25519PrivateKey(&buf, privateKey, []byte("password"))
+	buffer := bytes.Buffer{}
+	err = WriteCrypt4GHX25519PrivateKey(&buffer, privateKey, []byte("password"))
 	if err != nil {
 		t.Error(err)
 	}
-	privateKeyReconstructed, err := ReadPrivateKey(&buf, []byte("password"))
+	privateKeyReconstructed, err := ReadPrivateKey(&buffer, []byte("password"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -216,8 +216,8 @@ func TestWriteCrypt4GHX25519PublicKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	buf := bytes.Buffer{}
-	err = WriteCrypt4GHX25519PublicKey(&buf, publicKey)
+	buffer := bytes.Buffer{}
+	err = WriteCrypt4GHX25519PublicKey(&buffer, publicKey)
 	if err != nil {
 		t.Error(err)
 	}
@@ -229,7 +229,7 @@ func TestWriteCrypt4GHX25519PublicKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !bytes.Equal(keyFileBytes, buf.Bytes()) {
+	if !bytes.Equal(keyFileBytes, buffer.Bytes()) {
 		t.Fail()
 	}
 }
