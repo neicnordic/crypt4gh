@@ -21,7 +21,7 @@ type Crypt4GHWriter struct {
 }
 
 // NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and corresponding keys.
-func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKey [chacha20poly1305.KeySize]byte, dataEditListHeaderPacket *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
+func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKey [chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
 	crypt4GHWriter := Crypt4GHWriter{}
 	var sharedKey [chacha20poly1305.KeySize]byte
 	_, err := rand.Read(sharedKey[:])
@@ -41,12 +41,12 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 		HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
 		EncryptedHeaderPacket:  crypt4GHWriter.dataEncryptionParametersHeaderPacket,
 	})
-	if dataEditListHeaderPacket != nil {
+	if dataEditList != nil {
 		headerPackets = append(headerPackets, headers.HeaderPacket{
 			WriterPrivateKey:       writerPrivateKey,
 			ReaderPublicKey:        readerPublicKey,
 			HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
-			EncryptedHeaderPacket:  dataEditListHeaderPacket,
+			EncryptedHeaderPacket:  dataEditList,
 		})
 	}
 	var magicNumber [8]byte

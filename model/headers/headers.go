@@ -102,7 +102,7 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 		if err != nil {
 			return
 		}
-		_, err = io.CopyN(buffer, reader, int64(packetLength))
+		_, err = io.CopyN(buffer, reader, int64(packetLength-4)) // packetLength includes length of "packetLength"
 		if err != nil {
 			return
 		}

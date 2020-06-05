@@ -3,6 +3,7 @@ package streaming
 import (
 	"bufio"
 	"bytes"
+	"encoding/hex"
 	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"io"
@@ -371,5 +372,35 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	actualText := strings.TrimSpace(string(all))
 	if !strings.EqualFold(expectedText, actualText) {
 		t.Fail()
+	}
+}
+
+func TestGetHeader(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt.enc")
+	if err != nil {
+		t.Error(err)
+	}
+	keyFile, err := os.Open("../test/crypt4gh-x25519-enc.sec.pem")
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(keyFile, []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	reader, err := NewCrypt4GHReader(inFile, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	header := hex.EncodeToString(reader.GetHeader())
+	if header != "637279707434676801000000010000006c000000000000005ee4b32a4b0fb53dc04dcb02aea9d258afd07736e13522ccaaf4077e643c8d1b9ed06c98c3183938aec96dd7b39258b80c4291ef23d4f16a4a35f52f95a25d7b6121d9646c94994c7cacfe3c98d4cb8122213b2475909fdc1e16f322e57095129cd87a6a" {
+		t.Error()
+	}
+	readByte, err := reader.ReadByte()
+	if err != nil {
+		t.Error(err)
+	}
+	if rune(readByte) != 'L' {
+		t.Error()
 	}
 }
