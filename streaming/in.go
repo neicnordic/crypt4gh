@@ -14,6 +14,7 @@ import (
 type crypt4GHInternalReader struct {
 	reader io.Reader
 
+	header                                headers.Header
 	dataEncryptionParametersHeaderPackets []headers.DataEncryptionParametersHeaderPacket
 	dataEditList                          *headers.DataEditListHeaderPacket
 	encryptedSegmentSize                  int
@@ -27,6 +28,7 @@ func newCrypt4GHInternalReader(reader io.Reader, readerPrivateKey [chacha20poly1
 	if err != nil {
 		return nil, err
 	}
+	crypt4GHInternalReader.header = *header
 	dataEncryptionParameterHeaderPackets, err := header.GetDataEncryptionParameterHeaderPackets()
 	if err != nil {
 		return nil, err
@@ -317,6 +319,11 @@ func (c *Crypt4GHReader) discardWithDataEditList(n int) (int, error) {
 		}
 	}
 	return bytesDiscarded, nil
+}
+
+// GetHeader method returns Crypt4GH header structure.
+func (c Crypt4GHReader) GetHeader() headers.Header {
+	return c.reader.header
 }
 
 type dataEditListEntry struct {
