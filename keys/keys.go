@@ -120,15 +120,14 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 }
 
 func readCrypt4GHPrivateKey(pemBytes []byte, passPhrase []byte) (privateKey [chacha20poly1305.KeySize]byte, err error) {
-	buf := bytes.Buffer{}
-	buf.Write(pemBytes[len(magic):])
+	buffer := bytes.NewBuffer(pemBytes[len(magic):])
 	var length uint16
-	err = binary.Read(&buf, binary.BigEndian, &length)
+	err = binary.Read(buffer, binary.BigEndian, &length)
 	if err != nil {
 		return
 	}
 	kdfName := make([]byte, length)
-	err = binary.Read(&buf, binary.BigEndian, &kdfName)
+	err = binary.Read(buffer, binary.BigEndian, &kdfName)
 	if err != nil {
 		return
 	}
@@ -142,35 +141,35 @@ func readCrypt4GHPrivateKey(pemBytes []byte, passPhrase []byte) (privateKey [cha
 		if passPhrase == nil {
 			return privateKey, errors.New("private key is password-protected, need a password for decryption")
 		}
-		err = binary.Read(&buf, binary.BigEndian, &length)
+		err = binary.Read(buffer, binary.BigEndian, &length)
 		if err != nil {
 			return
 		}
-		err = binary.Read(&buf, binary.BigEndian, &rounds)
+		err = binary.Read(buffer, binary.BigEndian, &rounds)
 		if err != nil {
 			return
 		}
 		salt = make([]byte, length-4)
-		err = binary.Read(&buf, binary.BigEndian, &salt)
+		err = binary.Read(buffer, binary.BigEndian, &salt)
 		if err != nil {
 			return
 		}
 	}
-	err = binary.Read(&buf, binary.BigEndian, &length)
+	err = binary.Read(buffer, binary.BigEndian, &length)
 	if err != nil {
 		return
 	}
 	ciphername := make([]byte, length)
-	err = binary.Read(&buf, binary.BigEndian, &ciphername)
+	err = binary.Read(buffer, binary.BigEndian, &ciphername)
 	if err != nil {
 		return
 	}
-	err = binary.Read(&buf, binary.BigEndian, &length)
+	err = binary.Read(buffer, binary.BigEndian, &length)
 	if err != nil {
 		return
 	}
 	payload := make([]byte, length)
-	err = binary.Read(&buf, binary.BigEndian, &payload)
+	err = binary.Read(buffer, binary.BigEndian, &payload)
 	if err != nil {
 		return
 	}
@@ -315,47 +314,43 @@ func WriteCrypt4GHX25519PrivateKey(writer io.Writer, privateKey [chacha20poly130
 	}
 	encryptedPrivateKey := aead.Seal(nil, nonce[:], privateKey[:], nil)
 
-	buf := bytes.Buffer{}
-	_, err = buf.Write([]byte(magic))
-	if err != nil {
-		return err
-	}
+	buffer := bytes.NewBuffer([]byte(magic))
 	length := uint16(len(kdfName))
-	err = binary.Write(&buf, binary.BigEndian, length)
+	err = binary.Write(buffer, binary.BigEndian, length)
 	if err != nil {
 		return err
 	}
-	err = binary.Write(&buf, binary.BigEndian, []byte(kdfName))
+	err = binary.Write(buffer, binary.BigEndian, []byte(kdfName))
 	if err != nil {
 		return err
 	}
 	rounds := [4]byte{}
 	roundsWithSalt := append(rounds[:], salt[:]...)
 	length = uint16(len(roundsWithSalt))
-	err = binary.Write(&buf, binary.BigEndian, length)
+	err = binary.Write(buffer, binary.BigEndian, length)
 	if err != nil {
 		return err
 	}
-	err = binary.Write(&buf, binary.BigEndian, roundsWithSalt)
+	err = binary.Write(buffer, binary.BigEndian, roundsWithSalt)
 	if err != nil {
 		return err
 	}
 	length = uint16(len(supportedCipherName))
-	err = binary.Write(&buf, binary.BigEndian, length)
+	err = binary.Write(buffer, binary.BigEndian, length)
 	if err != nil {
 		return err
 	}
-	err = binary.Write(&buf, binary.BigEndian, []byte(supportedCipherName))
+	err = binary.Write(buffer, binary.BigEndian, []byte(supportedCipherName))
 	if err != nil {
 		return err
 	}
 	nonceWithKey := append(nonce[:], encryptedPrivateKey...)
 	length = uint16(len(nonceWithKey))
-	err = binary.Write(&buf, binary.BigEndian, length)
+	err = binary.Write(buffer, binary.BigEndian, length)
 	if err != nil {
 		return err
 	}
-	err = binary.Write(&buf, binary.BigEndian, nonceWithKey)
+	err = binary.Write(buffer, binary.BigEndian, nonceWithKey)
 	if err != nil {
 		return err
 	}
@@ -363,7 +358,7 @@ func WriteCrypt4GHX25519PrivateKey(writer io.Writer, privateKey [chacha20poly130
 	block := pem.Block{
 		Type:    crypt4GHPrivateKeyHeader,
 		Headers: nil,
-		Bytes:   buf.Bytes(),
+		Bytes:   buffer.Bytes(),
 	}
 	return pem.Encode(writer, &block)
 }

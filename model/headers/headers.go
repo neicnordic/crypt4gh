@@ -62,7 +62,6 @@ type Header struct {
 
 // ReadHeader method strips off the header from the io.Reader and returns it as a byte array.
 func ReadHeader(reader io.Reader) (header []byte, err error) {
-	buf := bytes.Buffer{}
 	var magicNumber = [8]byte{}
 	_, err = reader.Read(magicNumber[:])
 	if err != nil {
@@ -71,10 +70,7 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 	if string(magicNumber[:]) != MagicNumber {
 		return header, errors.New("not a Crypt4GH file")
 	}
-	_, err = buf.Write(magicNumber[:])
-	if err != nil {
-		return
-	}
+	buffer := bytes.NewBuffer(magicNumber[:])
 	var version uint32
 	err = binary.Read(reader, binary.LittleEndian, &version)
 	if err != nil {
@@ -83,7 +79,7 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 	if version != Version {
 		return header, fmt.Errorf("version %v not supported", version)
 	}
-	err = binary.Write(&buf, binary.LittleEndian, version)
+	err = binary.Write(buffer, binary.LittleEndian, version)
 	if err != nil {
 		return
 	}
@@ -92,7 +88,7 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 	if err != nil {
 		return
 	}
-	err = binary.Write(&buf, binary.LittleEndian, headerPacketCount)
+	err = binary.Write(buffer, binary.LittleEndian, headerPacketCount)
 	if err != nil {
 		return
 	}
@@ -102,16 +98,16 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 		if err != nil {
 			return
 		}
-		err = binary.Write(&buf, binary.LittleEndian, packetLength)
+		err = binary.Write(buffer, binary.LittleEndian, packetLength)
 		if err != nil {
 			return
 		}
-		_, err = io.CopyN(&buf, reader, int64(packetLength))
+		_, err = io.CopyN(buffer, reader, int64(packetLength))
 		if err != nil {
 			return
 		}
 	}
-	return buf.Bytes(), nil
+	return buffer.Bytes(), nil
 }
 
 // NewHeader method constructs Header from io.Reader and supplied private key.

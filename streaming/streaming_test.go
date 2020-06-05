@@ -44,7 +44,6 @@ func TestReencryption(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			buf := bytes.Buffer{}
 			keyFile, err := os.Open("../test/ssh-ed25519-enc.sec.pem")
 			if err != nil {
 				t.Error(err)
@@ -61,7 +60,8 @@ func TestReencryption(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			writer, err := NewCrypt4GHWriter(&buf, writerPrivateKey, readerPublicKey, nil)
+			buffer := bytes.Buffer{}
+			writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKey, nil)
 			if err != nil {
 				t.Error(err)
 			}
@@ -86,7 +86,7 @@ func TestReencryption(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			reader, err := NewCrypt4GHReader(&buf, readerSecretKey, nil)
+			reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, nil)
 			if err != nil {
 				t.Error(err)
 			}
@@ -129,7 +129,6 @@ func TestReencryptionWithDataEditListInCrypt4GHWriterNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	buf := bytes.Buffer{}
 	keyFile, err := os.Open("../test/ssh-ed25519-enc.sec.pem")
 	if err != nil {
 		t.Error(err)
@@ -151,7 +150,8 @@ func TestReencryptionWithDataEditListInCrypt4GHWriterNoDiscard(t *testing.T) {
 		NumberLengths: 4,
 		Lengths:       []uint64{950, 837, 510, 847},
 	}
-	writer, err := NewCrypt4GHWriter(&buf, writerPrivateKey, readerPublicKey, &dataEditListHeaderPacket)
+	buffer := bytes.Buffer{}
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKey, &dataEditListHeaderPacket)
 	if err != nil {
 		t.Error(err)
 	}
@@ -176,7 +176,7 @@ func TestReencryptionWithDataEditListInCrypt4GHWriterNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	reader, err := NewCrypt4GHReader(&buf, readerSecretKey, nil)
+	reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -202,7 +202,6 @@ func TestReencryptionWithDataEditListInCrypt4GHReaderNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	buf := bytes.Buffer{}
 	keyFile, err := os.Open("../test/ssh-ed25519-enc.sec.pem")
 	if err != nil {
 		t.Error(err)
@@ -219,7 +218,8 @@ func TestReencryptionWithDataEditListInCrypt4GHReaderNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	writer, err := NewCrypt4GHWriter(&buf, writerPrivateKey, readerPublicKey, nil)
+	buffer := bytes.Buffer{}
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKey, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -249,17 +249,10 @@ func TestReencryptionWithDataEditListInCrypt4GHReaderNoDiscard(t *testing.T) {
 		NumberLengths: 4,
 		Lengths:       []uint64{950, 837, 510, 847},
 	}
-	reader, err := NewCrypt4GHReader(&buf, readerSecretKey, &dataEditListHeaderPacket)
+	reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, &dataEditListHeaderPacket)
 	if err != nil {
 		t.Error(err)
 	}
-	//discarded, err := reader.Discard(test.discard)
-	//if err != nil {
-	//	t.Error(err)
-	//}
-	//if discarded != test.discard {
-	//	t.Fail()
-	//}
 	all, err := ioutil.ReadAll(reader)
 	if err != nil {
 		t.Error(err)
@@ -283,7 +276,6 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	buf := bytes.Buffer{}
 	keyFile, err := os.Open("../test/ssh-ed25519-enc.sec.pem")
 	if err != nil {
 		t.Error(err)
@@ -300,7 +292,8 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	writer, err := NewCrypt4GHWriter(&buf, writerPrivateKey, readerPublicKey, nil)
+	buffer := bytes.Buffer{}
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKey, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -330,7 +323,7 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 		NumberLengths: 4,
 		Lengths:       []uint64{950, 837, 510, 847},
 	}
-	reader, err := NewCrypt4GHReader(&buf, readerSecretKey, &dataEditListHeaderPacket)
+	reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, &dataEditListHeaderPacket)
 	if err != nil {
 		t.Error(err)
 	}

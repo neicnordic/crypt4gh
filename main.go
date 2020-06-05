@@ -287,21 +287,21 @@ func fileExists(fileName string) bool {
 func generateHelpMessage() string {
 	header := "crypt4gh [generate | encrypt | decrypt] <args>\n"
 
-	buf := bytes.Buffer{}
-	generateOptionsParser.WriteHelp(&buf)
-	generateUsage := buf.String()
+	buffer := bytes.Buffer{}
+	generateOptionsParser.WriteHelp(&buffer)
+	generateUsage := buffer.String()
 	generateUsage = strings.Replace(generateUsage, usageString, "", 1)
 	generateUsage = strings.Replace(generateUsage, applicationOptions, " "+generate, 1)
 
-	buf.Reset()
-	encryptOptionsParser.WriteHelp(&buf)
-	encryptUsage := buf.String()
+	buffer.Reset()
+	encryptOptionsParser.WriteHelp(&buffer)
+	encryptUsage := buffer.String()
 	encryptUsage = strings.Replace(encryptUsage, usageString, "", 1)
 	encryptUsage = strings.Replace(encryptUsage, applicationOptions, " "+encrypt, 1)
 
-	buf.Reset()
-	decryptOptionsParser.WriteHelp(&buf)
-	decryptUsage := buf.String()
+	buffer.Reset()
+	decryptOptionsParser.WriteHelp(&buffer)
+	decryptUsage := buffer.String()
 	decryptUsage = strings.Replace(decryptUsage, usageString, "", 1)
 	decryptUsage = strings.Replace(decryptUsage, applicationOptions, " "+decrypt, 1)
 

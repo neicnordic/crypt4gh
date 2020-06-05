@@ -74,11 +74,7 @@ func TestNewHeader(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	buf := bytes.Buffer{}
-	_, err = buf.Write(decodedHeader)
-	if err != nil {
-		t.Error(err)
-	}
+	buffer := bytes.NewBuffer(decodedHeader)
 	keyFile, err := os.Open("../../test/crypt4gh-x25519-enc.sec.pem")
 	if err != nil {
 		panic(err)
@@ -87,7 +83,7 @@ func TestNewHeader(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	header, err := NewHeader(&buf, readerSecretKey)
+	header, err := NewHeader(buffer, readerSecretKey)
 	if err != nil {
 		panic(err)
 	}
@@ -113,11 +109,7 @@ func TestReadHeader(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	buf := bytes.Buffer{}
-	_, err = buf.Write(header)
-	if err != nil {
-		t.Error(err)
-	}
+	buffer := bytes.NewBuffer(header)
 	err = inFile.Close()
 	if err != nil {
 		t.Error(err)
@@ -130,7 +122,7 @@ func TestReadHeader(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	header2, err := NewHeader(&buf, readerSecretKey)
+	header2, err := NewHeader(buffer, readerSecretKey)
 	if err != nil {
 		t.Error(err)
 	}
