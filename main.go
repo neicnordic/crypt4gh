@@ -210,7 +210,7 @@ func readPrivateKey(fileName string) (privateKey [chacha20poly1305.KeySize]byte,
 	return
 }
 
-func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte, format string, password string) error {
+func writeKeyPair(name string, publicKey, privateKey [chacha20poly1305.KeySize]byte, format, password string) error {
 	publicKeyFileName := name + ".pub.pem"
 	privateKeyFileName := name + ".sec.pem"
 	if fileExists(publicKeyFileName) || fileExists(privateKeyFileName) {
@@ -251,10 +251,7 @@ func writeKeyPair(name string, publicKey [chacha20poly1305.KeySize]byte, private
 			return err
 		}
 	}
-	if err = privateKeyFile.Close(); err != nil {
-		return err
-	}
-	return nil
+	return privateKeyFile.Close()
 }
 
 func promptYesNo(message string) {

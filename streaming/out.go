@@ -21,7 +21,7 @@ type Crypt4GHWriter struct {
 }
 
 // NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and corresponding keys.
-func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKey [chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
+func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey, readerPublicKey [chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
 	crypt4GHWriter := Crypt4GHWriter{}
 	var sharedKey [chacha20poly1305.KeySize]byte
 	_, err := rand.Read(sharedKey[:])

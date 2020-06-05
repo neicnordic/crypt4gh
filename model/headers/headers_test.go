@@ -233,12 +233,10 @@ func TestHeader_GetDataEditListHeaderPacket(t *testing.T) {
 	packet := header.GetDataEditListHeaderPacket()
 	if packet == nil {
 		t.Fail()
-	} else {
-		if packet.PacketType.PacketType != DataEditList ||
-			packet.NumberLengths != 2 ||
-			packet.Lengths[0] != 10 ||
-			packet.Lengths[1] != 100 {
-			t.Fail()
-		}
+	} else if packet.PacketType.PacketType != DataEditList ||
+		packet.NumberLengths != 2 ||
+		packet.Lengths[0] != 10 ||
+		packet.Lengths[1] != 100 {
+		t.Fail()
 	}
 }

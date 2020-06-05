@@ -37,7 +37,7 @@ var ed25519Algorithm = []int{1, 3, 101, 112}
 var x25519Algorithm = []int{1, 3, 101, 110}
 
 // GenerateKeyPair method generates X25519 key pair.
-func GenerateKeyPair() (publicKey [chacha20poly1305.KeySize]byte, privateKey [chacha20poly1305.KeySize]byte, err error) {
+func GenerateKeyPair() (publicKey, privateKey [chacha20poly1305.KeySize]byte, err error) {
 	edPublicKey, edPrivateKey, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		return
@@ -119,7 +119,7 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 	return privateKey, errors.New("private key format not supported")
 }
 
-func readCrypt4GHPrivateKey(pemBytes []byte, passPhrase []byte) (privateKey [chacha20poly1305.KeySize]byte, err error) {
+func readCrypt4GHPrivateKey(pemBytes, passPhrase []byte) (privateKey [chacha20poly1305.KeySize]byte, err error) {
 	buffer := bytes.NewBuffer(pemBytes[len(magic):])
 	var length uint16
 	err = binary.Read(buffer, binary.BigEndian, &length)
@@ -380,7 +380,7 @@ func DerivePublicKey(privateKey [chacha20poly1305.KeySize]byte) (publicKey [chac
 }
 
 // GenerateReaderSharedKey generates shared key for recipient, based on ECDH and BLAKE2 SHA-512.
-func GenerateReaderSharedKey(privateKey [chacha20poly1305.KeySize]byte, publicKey [chacha20poly1305.KeySize]byte) (*[]byte, error) {
+func GenerateReaderSharedKey(privateKey, publicKey [chacha20poly1305.KeySize]byte) (*[]byte, error) {
 	derivedPublicKey := DerivePublicKey(privateKey)
 	diffieHellmanKey, err := curve25519.X25519(privateKey[:], publicKey[:])
 	if err != nil {
@@ -390,7 +390,7 @@ func GenerateReaderSharedKey(privateKey [chacha20poly1305.KeySize]byte, publicKe
 }
 
 // GenerateWriterSharedKey generates shared key for sender, based on ECDH and BLAKE2 SHA-512.
-func GenerateWriterSharedKey(privateKey [chacha20poly1305.KeySize]byte, publicKey [chacha20poly1305.KeySize]byte) (*[]byte, error) {
+func GenerateWriterSharedKey(privateKey, publicKey [chacha20poly1305.KeySize]byte) (*[]byte, error) {
 	derivedPublicKey := DerivePublicKey(privateKey)
 	diffieHellmanKey, err := curve25519.X25519(privateKey[:], publicKey[:])
 	if err != nil {
@@ -399,7 +399,7 @@ func GenerateWriterSharedKey(privateKey [chacha20poly1305.KeySize]byte, publicKe
 	return generateSharedKey(diffieHellmanKey, publicKey, derivedPublicKey)
 }
 
-func generateSharedKey(diffieHellmanKey []byte, readerPublicKey [chacha20poly1305.KeySize]byte, writerPublicKey [chacha20poly1305.KeySize]byte) (*[]byte, error) {
+func generateSharedKey(diffieHellmanKey []byte, readerPublicKey, writerPublicKey [chacha20poly1305.KeySize]byte) (*[]byte, error) {
 	combination := append(diffieHellmanKey, readerPublicKey[:]...)
 	combination = append(combination, writerPublicKey[:]...)
 	hash := blake2b.Sum512(combination)
