@@ -1,6 +1,6 @@
 release:
   github:
-    owner: elixir-oslo
+    owner: pontus
     name: crypt4gh
 
 builds:
