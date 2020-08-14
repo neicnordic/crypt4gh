@@ -5,10 +5,11 @@ import (
 	"bytes"
 	"container/list"
 	"errors"
+	"io"
+
 	"github.com/elixir-oslo/crypt4gh/model/body"
 	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
-	"io"
 )
 
 type crypt4GHInternalReader struct {
@@ -132,25 +133,37 @@ func (c *crypt4GHInternalReader) discardSegment() (bytesDiscarded int, err error
 
 func (c *crypt4GHInternalReader) fillBuffer() error {
 	encryptedSegmentBytes := make([]byte, c.encryptedSegmentSize)
-	read, err := c.reader.Read(encryptedSegmentBytes)
+
+	read := 1
+	var err error
+	totalread := 0
+
+	for read != 0 && totalread != c.encryptedSegmentSize {
+		read, err = c.reader.Read(encryptedSegmentBytes)
+		if err != nil {
+			return err
+		}
+
+		totalread += read
+	}
+
+	if read == 0 {
+		c.buffer.Reset()
+		return nil
+	}
+
+	c.buffer.Reset()
+	segment := body.Segment{DataEncryptionParametersHeaderPackets: c.dataEncryptionParametersHeaderPackets}
+	err = segment.UnmarshalBinary(encryptedSegmentBytes[:read])
 	if err != nil {
 		return err
 	}
-	if read == 0 {
-		c.buffer.Reset()
-	} else {
-		c.buffer.Reset()
-		segment := body.Segment{DataEncryptionParametersHeaderPackets: c.dataEncryptionParametersHeaderPackets}
-		err := segment.UnmarshalBinary(encryptedSegmentBytes[:read])
-		if err != nil {
-			return err
-		}
-		_, err = c.buffer.Write(segment.UnencryptedData)
-		if err != nil {
-			return err
-		}
-		c.lastDecryptedSegment++
+	_, err = c.buffer.Write(segment.UnencryptedData)
+	if err != nil {
+		return err
 	}
+	c.lastDecryptedSegment++
+
 	return nil
 }
 
