@@ -132,9 +132,14 @@ func (c *crypt4GHInternalReader) discardSegment() (bytesDiscarded int, err error
 
 func (c *crypt4GHInternalReader) fillBuffer() error {
 	encryptedSegmentBytes := make([]byte, c.encryptedSegmentSize)
-	read, err := c.reader.Read(encryptedSegmentBytes)
+	read, err := io.ReadFull(c.reader, encryptedSegmentBytes)
 	if err != nil {
-		return err
+		if err == io.EOF {
+			return err
+		}
+		if err != io.ErrUnexpectedEOF {
+			return err
+		}
 	}
 	if read == 0 {
 		c.buffer.Reset()
