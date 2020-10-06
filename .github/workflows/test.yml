@@ -9,6 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v1
+        with:
+          languages: go
+    
       - name: Set up Go 1.13
         uses: actions/setup-go@v1
         with:
@@ -36,3 +41,6 @@ jobs:
           file: ./coverage.txt
           flags: unittests
           fail_ci_if_error: false
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v1
