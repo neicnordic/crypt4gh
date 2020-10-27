@@ -4,6 +4,7 @@ package streaming
 import (
 	"bytes"
 	"crypto/rand"
+	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/elixir-oslo/crypt4gh/model/body"
 	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -68,6 +69,16 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey, readerPublicKey [chac
 	crypt4GHWriter.writer = writer
 	crypt4GHWriter.buffer.Grow(headers.UnencryptedDataSegmentSize)
 	return &crypt4GHWriter, nil
+}
+
+// NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and reader's public key.
+// Writer's public key is generated automatically.
+func NewCrypt4GHWriterWithoutPrivateKey(writer io.Writer, readerPublicKey [chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
+	_, privateKey, err := keys.GenerateKeyPair()
+	if err != nil {
+		return nil, err
+	}
+	return NewCrypt4GHWriter(writer, privateKey, readerPublicKey, dataEditList)
 }
 
 // Write method implements io.Writer.Write.
