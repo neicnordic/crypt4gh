@@ -82,6 +82,7 @@ func main() {
 			log.Fatal(aurora.Red(err))
 		}
 	case encrypt:
+		setSeckeyFromEnv()
 		_, err := encryptOptionsParser.Parse()
 		if err != nil {
 			log.Fatal(aurora.Red(err))
@@ -134,6 +135,7 @@ func main() {
 		}
 		fmt.Println(aurora.Green(fmt.Sprintf("Success! %v bytes encrypted, file name: %v", written, outFileName)))
 	case decrypt:
+		setSeckeyFromEnv()
 		_, err := decryptOptionsParser.Parse()
 		if err != nil {
 			log.Fatal(aurora.Red(err))
@@ -308,5 +310,25 @@ func generateHelpMessage() string {
 	decryptUsage = strings.Replace(decryptUsage, usageString, "", 1)
 	decryptUsage = strings.Replace(decryptUsage, applicationOptions, " "+decrypt, 1)
 
-	return header + generateUsage + encryptUsage + decryptUsage
+	env := `
+Environment variable:
+  C4GH_SECRET_KEY  If defined, it will be used as the secret key file if parameter not set `
+
+
+	return header + generateUsage + encryptUsage + decryptUsage + env
+}
+
+func setSeckeyFromEnv() {
+
+
+	for _, v := range os.Args {
+		if v == "-s" ||  v == "--seckey"{
+			return
+		}
+	}
+
+	if s := os.Getenv("C4GH_SECRET_KEY"); s != "" {
+		os.Args = append( os.Args, fmt.Sprintf("-s=%s", s))
+	}
+
 }

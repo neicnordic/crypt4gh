@@ -48,4 +48,7 @@ crypt4gh [generate | encrypt | decrypt] <args>
  decrypt:
   -f, --file=FILE      File to decrypt
   -s, --seckey=FILE    Secret key to use
+
+Environment variable:
+   C4GH_SECRET_KEY  If defined, it will be used as the secret key file if parameter not set
 ```
