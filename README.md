@@ -42,10 +42,14 @@ crypt4gh [generate | encrypt | decrypt] <args>
 
  encrypt:
   -f, --file=FILE      File to encrypt
-  -s, --seckey=FILE    Secret key to use
   -p, --pubkey=FILE    Public key to use
+  -s, --seckey=FILE    Secret key to use
 
  decrypt:
   -f, --file=FILE      File to decrypt
   -s, --seckey=FILE    Secret key to use
+
+ Environment variables:
+
+ C4GH_SECRET_KEY        If defined, it will be used as the secret key file if parameter not set
 ```
