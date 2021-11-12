@@ -12,16 +12,20 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/agl/ed25519/extra25519"
+	"io"
+	"io/ioutil"
+
+	"crypto/sha512"
+
+	"filippo.io/edwards25519"
+
+	"github.com/elixir-oslo/crypt4gh/kdf"
+	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/ssh"
-	"io"
-	"io/ioutil"
 )
-import "golang.org/x/crypto/blake2b"
-import "github.com/elixir-oslo/crypt4gh/kdf"
 
 const (
 	openSSLPrivateKeyHeader  = "PRIVATE KEY"
@@ -45,11 +49,11 @@ func GenerateKeyPair() (publicKey, privateKey [chacha20poly1305.KeySize]byte, er
 
 	var edPublicKeyBytes [chacha20poly1305.KeySize]byte
 	copy(edPublicKeyBytes[:], edPublicKey)
-	extra25519.PublicKeyToCurve25519(&publicKey, &edPublicKeyBytes)
+	PublicKeyToCurve25519(&publicKey, edPublicKey)
 
 	var edPrivateKeyBytes [chacha20poly1305.KeySize * 2]byte
 	copy(edPrivateKeyBytes[:], edPrivateKey)
-	extra25519.PrivateKeyToCurve25519(&privateKey, &edPrivateKeyBytes)
+	PrivateKeyToCurve25519(&privateKey, edPrivateKey)
 
 	return
 }
@@ -79,15 +83,11 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 	if err == nil {
 		// Sometimes the key is returned as a pointer, but sometimes as a value
 		if edPrivateKey, ok := key.(*ed25519.PrivateKey); ok {
-			var edKeyBytes [chacha20poly1305.KeySize * 2]byte
-			copy(edKeyBytes[:], *edPrivateKey)
-			extra25519.PrivateKeyToCurve25519(&privateKey, &edKeyBytes)
+			PrivateKeyToCurve25519(&privateKey, *edPrivateKey)
 			return
 		}
 		edPrivateKey := key.(ed25519.PrivateKey)
-		var edKeyBytes [chacha20poly1305.KeySize * 2]byte
-		copy(edKeyBytes[:], edPrivateKey)
-		extra25519.PrivateKeyToCurve25519(&privateKey, &edKeyBytes)
+		PrivateKeyToCurve25519(&privateKey, edPrivateKey)
 		return
 	}
 
@@ -98,9 +98,9 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPrivateKey); err == nil {
 		// Trying to read OpenSSL Ed25519 private key and convert to X25519 private key
 		if openSSLPrivateKey.Algorithm.Algorithm.Equal(ed25519Algorithm) {
-			var edKeyBytes [chacha20poly1305.KeySize * 2]byte
+			var edKeyBytes ed25519.PrivateKey
 			copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
-			extra25519.PrivateKeyToCurve25519(&privateKey, &edKeyBytes)
+			PrivateKeyToCurve25519(&privateKey, edKeyBytes)
 			return
 		}
 
@@ -220,9 +220,8 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 	key, _, _, _, err := ssh.ParseAuthorizedKey(allBytes)
 	if err == nil {
 		marshalledKey := key.Marshal()
-		var edKeyBytes [chacha20poly1305.KeySize]byte
-		copy(edKeyBytes[:], marshalledKey[len(marshalledKey)-chacha20poly1305.KeySize:])
-		extra25519.PublicKeyToCurve25519(&publicKey, &edKeyBytes)
+		var edKeyBytes ed25519.PublicKey = marshalledKey[len(marshalledKey)-chacha20poly1305.KeySize:]
+		PublicKeyToCurve25519(&publicKey, edKeyBytes)
 		return
 	}
 
@@ -232,9 +231,8 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPublicKey); err == nil {
 		// Trying to read OpenSSL Ed25519 public key and convert to X25519 public key
 		if openSSLPublicKey.Algorithm.Algorithm.Equal(ed25519Algorithm) {
-			var edKeyBytes [chacha20poly1305.KeySize]byte
-			copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
-			extra25519.PublicKeyToCurve25519(&publicKey, &edKeyBytes)
+			var edKeyBytes ed25519.PublicKey = block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:]
+			PublicKeyToCurve25519(&publicKey, edKeyBytes)
 			return
 		}
 		// Trying to read OpenSSL X25519 public key
@@ -405,4 +403,35 @@ func generateSharedKey(diffieHellmanKey []byte, readerPublicKey, writerPublicKey
 	hash := blake2b.Sum512(combination)
 	sharedKey := hash[:chacha20poly1305.KeySize]
 	return &sharedKey, nil
+}
+
+// functions below copied adapted from:
+// https://github.com/cryptoscope/secretstream/blob/master/secrethandshake/internal/extra25519/convert.go
+
+// PrivateKeyToCurve25519 converts an ed25519 private key into a corresponding
+// curve25519 private key such that the resulting curve25519 public key will
+// equal the result from PublicKeyToCurve25519.
+func PrivateKeyToCurve25519(curve25519Private *[32]byte, privateKey ed25519.PrivateKey) {
+	h := sha512.New()
+	h.Write(privateKey[:32])
+	digest := h.Sum(nil)
+
+	digest[0] &= 248
+	digest[31] &= 127
+	digest[31] |= 64
+
+	copy(curve25519Private[:], digest)
+}
+
+// PublicKeyToCurve25519 converts an Ed25519 public key into the curve25519
+// public key that would be generated from the same private key.
+func PublicKeyToCurve25519(curveBytes *[32]byte, edBytes ed25519.PublicKey) bool {
+
+	edPoint, err := (&edwards25519.Point{}).SetBytes(edBytes)
+	if err != nil {
+		return false
+	}
+
+	copy(curveBytes[:], edPoint.BytesMontgomery())
+	return true
 }

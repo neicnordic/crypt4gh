@@ -3,11 +3,12 @@ package keys
 import (
 	"bytes"
 	"encoding/hex"
-	"golang.org/x/crypto/chacha20poly1305"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 func TestDerivePublicKey(t *testing.T) {
