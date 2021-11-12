@@ -397,15 +397,15 @@ func GenerateWriterSharedKey(privateKey, publicKey [chacha20poly1305.KeySize]byt
 	return generateSharedKey(diffieHellmanKey, publicKey, derivedPublicKey)
 }
 
-func generateSharedKey(diffieHellmanKey []byte, readerPublicKey, writerPublicKey [chacha20poly1305.KeySize]byte) (*[]byte, error) {
-	combination := append(diffieHellmanKey, readerPublicKey[:]...)
-	combination = append(combination, writerPublicKey[:]...)
-	hash := blake2b.Sum512(combination)
+func generateSharedKey(diffieHellmanKey []byte, readerPublicKey [32]byte, writerPublicKey [chacha20poly1305.KeySize]byte) (*[]byte, error) {
+	diffieHellmanKey = append(diffieHellmanKey, readerPublicKey[:]...)
+	diffieHellmanKey = append(diffieHellmanKey, writerPublicKey[:]...)
+	hash := blake2b.Sum512(diffieHellmanKey)
 	sharedKey := hash[:chacha20poly1305.KeySize]
 	return &sharedKey, nil
 }
 
-// functions below copied adapted from:
+// functions below adapted from:
 // https://github.com/cryptoscope/secretstream/blob/master/secrethandshake/internal/extra25519/convert.go
 
 // PrivateKeyToCurve25519 converts an ed25519 private key into a corresponding
