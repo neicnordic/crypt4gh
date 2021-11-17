@@ -7,12 +7,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+
+	"github.com/elixir-oslo/crypt4gh/keys"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/nacl/box"
-	"io"
 )
-
-import "github.com/elixir-oslo/crypt4gh/keys"
 
 const (
 	// MagicNumber is standard beginning of Crypt4GH header.
@@ -235,7 +235,7 @@ func NewHeaderPacket(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySiz
 }
 
 // MarshalBinary implements method MarshalBinary.BinaryMarshaler.
-func (hp HeaderPacket) MarshalBinary() (data []byte, err error) {
+func (hp *HeaderPacket) MarshalBinary() (data []byte, err error) {
 	var encryptedMarshalledEncryptedHeaderPacket []byte
 	switch hp.HeaderEncryptionMethod {
 	case X25519ChaCha20IETFPoly1305:
@@ -306,44 +306,43 @@ type EncryptedHeaderPacket interface {
 // NewEncryptedHeaderPacket method constructs EncryptedHeaderPacket from io.Reader and supplied private key.
 func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, headerEncryptionMethod HeaderEncryptionMethod, readerPrivateKey [chacha20poly1305.KeySize]byte) (*EncryptedHeaderPacket, error) {
 	var encryptedHeaderPacket EncryptedHeaderPacket
-	switch headerEncryptionMethod {
-	case X25519ChaCha20IETFPoly1305:
-		var writerPublicKeyBytes [chacha20poly1305.KeySize]byte
-		copy(writerPublicKeyBytes[:], encryptedPacketPayload[:chacha20poly1305.KeySize])
-		nonce := encryptedPacketPayload[chacha20poly1305.KeySize : chacha20poly1305.KeySize+chacha20poly1305.NonceSize]
-		encryptedPayload := encryptedPacketPayload[chacha20poly1305.KeySize+chacha20poly1305.NonceSize:]
-		sharedKey, err := keys.GenerateReaderSharedKey(readerPrivateKey, writerPublicKeyBytes)
+	// for headerEncryptionMethod we only support X25519ChaCha20IETFPoly1305
+	// if we support more then we need to check for header
+	var writerPublicKeyBytes [chacha20poly1305.KeySize]byte
+	copy(writerPublicKeyBytes[:], encryptedPacketPayload[:chacha20poly1305.KeySize])
+	nonce := encryptedPacketPayload[chacha20poly1305.KeySize : chacha20poly1305.KeySize+chacha20poly1305.NonceSize]
+	encryptedPayload := encryptedPacketPayload[chacha20poly1305.KeySize+chacha20poly1305.NonceSize:]
+	sharedKey, err := keys.GenerateReaderSharedKey(readerPrivateKey, writerPublicKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+	aead, err := chacha20poly1305.New(*sharedKey)
+	if err != nil {
+		return nil, err
+	}
+	decryptedPayload, err := aead.Open(nil, nonce, encryptedPayload, nil)
+	if err != nil {
+		return nil, err
+	}
+	decryptedPayloadReader := bytes.NewReader(decryptedPayload)
+	var packetType HeaderPacketType
+	err = binary.Read(decryptedPayloadReader, binary.LittleEndian, &packetType)
+	if err != nil {
+		return nil, err
+	}
+	switch packetType {
+	case DataEncryptionParameters:
+		packet, err := NewDataEncryptionParametersHeaderPacket(decryptedPayloadReader)
 		if err != nil {
 			return nil, err
 		}
-		aead, err := chacha20poly1305.New(*sharedKey)
+		encryptedHeaderPacket = *packet
+	case DataEditList:
+		packet, err := NewDataEditListHeaderPacket(decryptedPayloadReader)
 		if err != nil {
 			return nil, err
 		}
-		decryptedPayload, err := aead.Open(nil, nonce, encryptedPayload, nil)
-		if err != nil {
-			return nil, err
-		}
-		decryptedPayloadReader := bytes.NewReader(decryptedPayload)
-		var packetType HeaderPacketType
-		err = binary.Read(decryptedPayloadReader, binary.LittleEndian, &packetType)
-		if err != nil {
-			return nil, err
-		}
-		switch packetType {
-		case DataEncryptionParameters:
-			packet, err := NewDataEncryptionParametersHeaderPacket(decryptedPayloadReader)
-			if err != nil {
-				return nil, err
-			}
-			encryptedHeaderPacket = *packet
-		case DataEditList:
-			packet, err := NewDataEditListHeaderPacket(decryptedPayloadReader)
-			if err != nil {
-				return nil, err
-			}
-			encryptedHeaderPacket = *packet
-		}
+		encryptedHeaderPacket = *packet
 	}
 
 	return &encryptedHeaderPacket, nil
@@ -374,14 +373,14 @@ func NewDataEncryptionParametersHeaderPacket(reader io.Reader) (*DataEncryptionP
 	if err != nil {
 		return nil, err
 	}
-	switch dataEncryptionParametersHeaderPacket.DataEncryptionMethod {
-	case ChaCha20IETFPoly1305:
-		dataEncryptionParametersHeaderPacket.EncryptedSegmentSize = chacha20poly1305.NonceSize + UnencryptedDataSegmentSize + box.Overhead
-		err := binary.Read(reader, binary.LittleEndian, &dataEncryptionParametersHeaderPacket.DataKey)
-		if err != nil {
-			return nil, err
-		}
+	// we only use ChaCha20IETFPoly1305 for dataEncryptionParametersHeaderPacket.DataEncryptionMethod
+	// thus we fix it
+	dataEncryptionParametersHeaderPacket.EncryptedSegmentSize = chacha20poly1305.NonceSize + UnencryptedDataSegmentSize + box.Overhead
+	err = binary.Read(reader, binary.LittleEndian, &dataEncryptionParametersHeaderPacket.DataKey)
+	if err != nil {
+		return nil, err
 	}
+
 	return &dataEncryptionParametersHeaderPacket, nil
 }
 
