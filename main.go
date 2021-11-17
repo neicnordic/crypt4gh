@@ -38,9 +38,9 @@ var generateOptions struct {
 var generateOptionsParser = flags.NewParser(&generateOptions, flags.None)
 
 var encryptOptions struct {
-	FileName          string `short:"f"  long:"file" description:"File to encrypt" value-name:"FILE" required:"true"`
-	PublicKeyFileName string `short:"p" long:"pubkey" description:"Public key to use" value-name:"FILE" required:"true"`
-	SecretKeyFileName string `short:"s" long:"seckey" description:"Secret key to use" value-name:"FILE"`
+	FileName          string   `short:"f"  long:"file" description:"File to encrypt" value-name:"FILE" required:"true"`
+	PublicKeyFileName []string `short:"p" long:"pubkey" description:"Public key(s) to use" value-name:"FILE" required:"true"`
+	SecretKeyFileName string   `short:"s" long:"seckey" description:"Secret key to use" value-name:"FILE"`
 }
 var encryptOptionsParser = flags.NewParser(&encryptOptions, flags.None)
 
@@ -101,9 +101,14 @@ func main() {
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
-		publicKey, err := readPublicKey(encryptOptions.PublicKeyFileName)
-		if err != nil {
-			log.Fatal(aurora.Red(err))
+
+		pubkeyList := [][chacha20poly1305.KeySize]byte{}
+		for _, pubkey := range encryptOptions.PublicKeyFileName {
+			publicKey, err := readPublicKey(pubkey)
+			if err != nil {
+				log.Fatal(aurora.Red(err))
+			}
+			pubkeyList = append(pubkeyList, publicKey)
 		}
 		var privateKey [32]byte
 		if encryptOptions.SecretKeyFileName == "" && secretKeyPath == "" {
@@ -137,7 +142,7 @@ func main() {
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
-		crypt4GHWriter, err := streaming.NewCrypt4GHWriter(outFile, privateKey, publicKey, nil)
+		crypt4GHWriter, err := streaming.NewCrypt4GHWriter(outFile, privateKey, pubkeyList, nil)
 		if err != nil {
 			log.Fatal(aurora.Red(err))
 		}
