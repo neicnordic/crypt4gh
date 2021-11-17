@@ -4,14 +4,35 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/hex"
-	"github.com/elixir-oslo/crypt4gh/keys"
-	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"io"
 	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/elixir-oslo/crypt4gh/keys"
+	"github.com/elixir-oslo/crypt4gh/model/headers"
+	"golang.org/x/crypto/chacha20poly1305"
 )
+
+const crypt4gh_x25519_sec = `-----BEGIN CRYPT4GH ENCRYPTED PRIVATE KEY-----
+YzRnaC12MQAGc2NyeXB0ABQAAAAAbY7POWSS/pYIR8zrPQZJ+QARY2hhY2hhMjBfcG9seTEzMDUAPKc4jWLf1h2T5FsPhNUYMMZ8y36ESATXOuloI0uxKxov3OZ/EbW0Rj6XY0pd7gcBLQDFwakYB7KMgKjiCAAA
+-----END CRYPT4GH ENCRYPTED PRIVATE KEY-----
+`
+const crypt4gh_x25519_pub = `-----BEGIN CRYPT4GH PUBLIC KEY-----
+y67skGFKqYN+0n+1P0FyxYa/lHPUWiloN4kdrx7J3BA=
+-----END CRYPT4GH PUBLIC KEY-----
+`
+
+const ssh_ed25519_sec_enc = `-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCKYb3joJ
+xaRg4JDkveDbaTAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIA65hmgJeJakva2c
+tMpwAqifM/904s6O1zkwLeS5WiDDAAAAoLwLn+qb6fvbYvPn5VuK2IY94BGFlxPdsJElH0
+qLE4/hhZiDTXKv7sxup9ZXeJ5ZS5pvFRFPqODCBG87JlbpNBra5pbywpyco89Gr+B0PHff
+PR84IfM7rbdETegmHhq6rX9HGSWhA2Hqa3ntZ2dDD+HUtzdGi3zRPAFLCF0uy3laaiBItC
+VgFxmKhQ85221EUcMSEk6ophcCe8thlrtxjZk=
+-----END OPENSSH PRIVATE KEY-----
+`
 
 func TestReencryption(t *testing.T) {
 	tests := []struct {
@@ -45,24 +66,18 @@ func TestReencryption(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			keyFile, err := os.Open("../test/ssh-ed25519-enc.sec.pem")
+			writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(ssh_ed25519_sec_enc), []byte("123123"))
 			if err != nil {
 				t.Error(err)
 			}
-			writerPrivateKey, err := keys.ReadPrivateKey(keyFile, []byte("123123"))
+			readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4gh_x25519_pub))
 			if err != nil {
 				t.Error(err)
 			}
-			keyFile, err = os.Open("../test/crypt4gh-x25519-enc.pub.pem")
-			if err != nil {
-				t.Error(err)
-			}
-			readerPublicKey, err := keys.ReadPublicKey(keyFile)
-			if err != nil {
-				t.Error(err)
-			}
+			readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+			readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
 			buffer := bytes.Buffer{}
-			writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKey, nil)
+			writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
 			if err != nil {
 				t.Error(err)
 			}
@@ -79,11 +94,7 @@ func TestReencryption(t *testing.T) {
 				t.Error(err)
 			}
 
-			keyFile, err = os.Open("../test/crypt4gh-x25519-enc.sec.pem")
-			if err != nil {
-				t.Error(err)
-			}
-			readerSecretKey, err := keys.ReadPrivateKey(keyFile, []byte("password"))
+			readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
 			if err != nil {
 				t.Error(err)
 			}
@@ -130,19 +141,11 @@ func TestReencryptionWithDataEditListInCrypt4GHWriterNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	keyFile, err := os.Open("../test/ssh-ed25519-enc.sec.pem")
+	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(ssh_ed25519_sec_enc), []byte("123123"))
 	if err != nil {
 		t.Error(err)
 	}
-	writerPrivateKey, err := keys.ReadPrivateKey(keyFile, []byte("123123"))
-	if err != nil {
-		t.Error(err)
-	}
-	keyFile, err = os.Open("../test/crypt4gh-x25519-enc.pub.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	readerPublicKey, err := keys.ReadPublicKey(keyFile)
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4gh_x25519_pub))
 	if err != nil {
 		t.Error(err)
 	}
@@ -152,7 +155,9 @@ func TestReencryptionWithDataEditListInCrypt4GHWriterNoDiscard(t *testing.T) {
 		Lengths:       []uint64{950, 837, 510, 847},
 	}
 	buffer := bytes.Buffer{}
-	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKey, &dataEditListHeaderPacket)
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, &dataEditListHeaderPacket)
 	if err != nil {
 		t.Error(err)
 	}
@@ -168,12 +173,7 @@ func TestReencryptionWithDataEditListInCrypt4GHWriterNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	keyFile, err = os.Open("../test/crypt4gh-x25519-enc.sec.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	readerSecretKey, err := keys.ReadPrivateKey(keyFile, []byte("password"))
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -203,24 +203,18 @@ func TestReencryptionWithDataEditListInCrypt4GHReaderNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	keyFile, err := os.Open("../test/ssh-ed25519-enc.sec.pem")
+	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(ssh_ed25519_sec_enc), []byte("123123"))
 	if err != nil {
 		t.Error(err)
 	}
-	writerPrivateKey, err := keys.ReadPrivateKey(keyFile, []byte("123123"))
-	if err != nil {
-		t.Error(err)
-	}
-	keyFile, err = os.Open("../test/crypt4gh-x25519-enc.pub.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	readerPublicKey, err := keys.ReadPublicKey(keyFile)
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4gh_x25519_pub))
 	if err != nil {
 		t.Error(err)
 	}
 	buffer := bytes.Buffer{}
-	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKey, nil)
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -237,11 +231,7 @@ func TestReencryptionWithDataEditListInCrypt4GHReaderNoDiscard(t *testing.T) {
 		t.Error(err)
 	}
 
-	keyFile, err = os.Open("../test/crypt4gh-x25519-enc.sec.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	readerSecretKey, err := keys.ReadPrivateKey(keyFile, []byte("password"))
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -277,24 +267,18 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	keyFile, err := os.Open("../test/ssh-ed25519-enc.sec.pem")
+	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(ssh_ed25519_sec_enc), []byte("123123"))
 	if err != nil {
 		t.Error(err)
 	}
-	writerPrivateKey, err := keys.ReadPrivateKey(keyFile, []byte("123123"))
-	if err != nil {
-		t.Error(err)
-	}
-	keyFile, err = os.Open("../test/crypt4gh-x25519-enc.pub.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	readerPublicKey, err := keys.ReadPublicKey(keyFile)
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4gh_x25519_pub))
 	if err != nil {
 		t.Error(err)
 	}
 	buffer := bytes.Buffer{}
-	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKey, nil)
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -311,11 +295,7 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 		t.Error(err)
 	}
 
-	keyFile, err = os.Open("../test/crypt4gh-x25519-enc.sec.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	readerSecretKey, err := keys.ReadPrivateKey(keyFile, []byte("password"))
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -380,11 +360,7 @@ func TestGetHeader(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	keyFile, err := os.Open("../test/crypt4gh-x25519-enc.sec.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	readerSecretKey, err := keys.ReadPrivateKey(keyFile, []byte("password"))
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
 	if err != nil {
 		t.Error(err)
 	}

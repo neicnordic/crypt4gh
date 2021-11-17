@@ -4,25 +4,40 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"github.com/elixir-oslo/crypt4gh/keys"
 	"os"
+	"strings"
 	"testing"
+
+	"github.com/elixir-oslo/crypt4gh/keys"
 )
 
+const crypt4gh_x25519_sec = `-----BEGIN CRYPT4GH ENCRYPTED PRIVATE KEY-----
+YzRnaC12MQAGc2NyeXB0ABQAAAAAbY7POWSS/pYIR8zrPQZJ+QARY2hhY2hhMjBfcG9seTEzMDUAPKc4jWLf1h2T5FsPhNUYMMZ8y36ESATXOuloI0uxKxov3OZ/EbW0Rj6XY0pd7gcBLQDFwakYB7KMgKjiCAAA
+-----END CRYPT4GH ENCRYPTED PRIVATE KEY-----
+`
+const crypt4gh_x25519_pub = `-----BEGIN CRYPT4GH PUBLIC KEY-----
+y67skGFKqYN+0n+1P0FyxYa/lHPUWiloN4kdrx7J3BA=
+-----END CRYPT4GH PUBLIC KEY-----
+`
+
+const ssh_ed25519_sec_enc = `-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCKYb3joJ
+xaRg4JDkveDbaTAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIA65hmgJeJakva2c
+tMpwAqifM/904s6O1zkwLeS5WiDDAAAAoLwLn+qb6fvbYvPn5VuK2IY94BGFlxPdsJElH0
+qLE4/hhZiDTXKv7sxup9ZXeJ5ZS5pvFRFPqODCBG87JlbpNBra5pbywpyco89Gr+B0PHff
+PR84IfM7rbdETegmHhq6rX9HGSWhA2Hqa3ntZ2dDD+HUtzdGi3zRPAFLCF0uy3laaiBItC
+VgFxmKhQ85221EUcMSEk6ophcCe8thlrtxjZk=
+-----END OPENSSH PRIVATE KEY-----
+`
+
 func TestHeaderMarshallingWithNonce(t *testing.T) {
-	keyFile, err := os.Open("../../test/ssh-ed25519-enc.sec.pem")
+
+	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(ssh_ed25519_sec_enc), []byte("123123"))
 	if err != nil {
 		panic(err)
 	}
-	writerPrivateKey, err := keys.ReadPrivateKey(keyFile, []byte("123123"))
-	if err != nil {
-		panic(err)
-	}
-	keyFile, err = os.Open("../../test/crypt4gh-x25519-enc.pub.pem")
-	if err != nil {
-		panic(err)
-	}
-	readerPublicKey, err := keys.ReadPublicKey(keyFile)
+
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4gh_x25519_pub))
 	if err != nil {
 		panic(err)
 	}
@@ -75,11 +90,7 @@ func TestNewHeader(t *testing.T) {
 		t.Error(err)
 	}
 	buffer := bytes.NewBuffer(decodedHeader)
-	keyFile, err := os.Open("../../test/crypt4gh-x25519-enc.sec.pem")
-	if err != nil {
-		panic(err)
-	}
-	readerSecretKey, err := keys.ReadPrivateKey(keyFile, []byte("password"))
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
 	if err != nil {
 		panic(err)
 	}
@@ -97,11 +108,7 @@ func TestReadHeader(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	keyFile, err := os.Open("../../test/crypt4gh-x25519-enc.sec.pem")
-	if err != nil {
-		t.Error(err)
-	}
-	readerSecretKey, err := keys.ReadPrivateKey(keyFile, []byte("password"))
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -132,19 +139,13 @@ func TestReadHeader(t *testing.T) {
 }
 
 func TestHeaderMarshallingWithoutNonce(t *testing.T) {
-	keyFile, err := os.Open("../../test/ssh-ed25519-enc.sec.pem")
+
+	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(ssh_ed25519_sec_enc), []byte("123123"))
 	if err != nil {
 		panic(err)
 	}
-	writerPrivateKey, err := keys.ReadPrivateKey(keyFile, []byte("123123"))
-	if err != nil {
-		panic(err)
-	}
-	keyFile, err = os.Open("../../test/crypt4gh-x25519-enc.pub.pem")
-	if err != nil {
-		panic(err)
-	}
-	readerPublicKey, err := keys.ReadPublicKey(keyFile)
+
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4gh_x25519_pub))
 	if err != nil {
 		panic(err)
 	}
