@@ -25,3 +25,5 @@ crypt4gh
 /Godeps/
 
 # End of https://www.gitignore.io/api/go
+
+coverage.txt
