@@ -148,18 +148,17 @@ func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte
 			case *HeaderReaderError:
 				// do nothing
 				// we carry on and try the next header package
+				continue
 			default:
 				// for any other error we return it
 				return nil, err
 			}
 		}
-		if headerPacket != nil {
-			header.HeaderPackets = append(header.HeaderPackets, *headerPacket)
-		}
+		header.HeaderPackets = append(header.HeaderPackets, *headerPacket)
 	}
 
 	if len(header.HeaderPackets) == 0 {
-		return nil, errors.New("could not find reader in header, decryption failed")
+		return nil, errors.New("could not find matching public key header, decryption failed")
 	}
 	return &header, nil
 }
