@@ -27,3 +27,5 @@ crypt4gh
 # End of https://www.gitignore.io/api/go
 
 coverage.txt
+*.pub
+*.sec.pem

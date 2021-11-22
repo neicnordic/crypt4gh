@@ -4,12 +4,13 @@ package streaming
 import (
 	"bytes"
 	"crypto/rand"
+	"io"
+
 	"github.com/elixir-oslo/crypt4gh/keys"
 	"github.com/elixir-oslo/crypt4gh/model/body"
 	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/nacl/box"
-	"io"
 )
 
 // Crypt4GHWriter structure implements io.WriteCloser and io.ByteWriter.
@@ -22,7 +23,7 @@ type Crypt4GHWriter struct {
 }
 
 // NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and corresponding keys.
-func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey, readerPublicKey [chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
+func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKeyList [][chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
 	crypt4GHWriter := Crypt4GHWriter{}
 	var sharedKey [chacha20poly1305.KeySize]byte
 	_, err := rand.Read(sharedKey[:])
@@ -36,19 +37,22 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey, readerPublicKey [chac
 		DataEncryptionMethod: headers.ChaCha20IETFPoly1305,
 		DataKey:              sharedKey,
 	}
-	headerPackets = append(headerPackets, headers.HeaderPacket{
-		WriterPrivateKey:       writerPrivateKey,
-		ReaderPublicKey:        readerPublicKey,
-		HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
-		EncryptedHeaderPacket:  crypt4GHWriter.dataEncryptionParametersHeaderPacket,
-	})
-	if dataEditList != nil {
+
+	for _, readerPublicKey := range readerPublicKeyList {
 		headerPackets = append(headerPackets, headers.HeaderPacket{
 			WriterPrivateKey:       writerPrivateKey,
 			ReaderPublicKey:        readerPublicKey,
 			HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
-			EncryptedHeaderPacket:  dataEditList,
+			EncryptedHeaderPacket:  crypt4GHWriter.dataEncryptionParametersHeaderPacket,
 		})
+		if dataEditList != nil {
+			headerPackets = append(headerPackets, headers.HeaderPacket{
+				WriterPrivateKey:       writerPrivateKey,
+				ReaderPublicKey:        readerPublicKey,
+				HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
+				EncryptedHeaderPacket:  dataEditList,
+			})
+		}
 	}
 	var magicNumber [8]byte
 	copy(magicNumber[:], headers.MagicNumber)
@@ -74,11 +78,13 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey, readerPublicKey [chac
 // NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and reader's public key.
 // Writer's public key is generated automatically.
 func NewCrypt4GHWriterWithoutPrivateKey(writer io.Writer, readerPublicKey [chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
 	_, privateKey, err := keys.GenerateKeyPair()
 	if err != nil {
 		return nil, err
 	}
-	return NewCrypt4GHWriter(writer, privateKey, readerPublicKey, dataEditList)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	return NewCrypt4GHWriter(writer, privateKey, readerPublicKeyList, dataEditList)
 }
 
 // Write method implements io.Writer.Write.

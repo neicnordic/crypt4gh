@@ -5,10 +5,11 @@ import (
 	"bytes"
 	"container/list"
 	"errors"
+	"io"
+
 	"github.com/elixir-oslo/crypt4gh/model/body"
 	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
-	"io"
 )
 
 type crypt4GHInternalReader struct {
@@ -268,7 +269,7 @@ func (c *Crypt4GHReader) Discard(n int) (discarded int, err error) {
 
 func (c *Crypt4GHReader) discardWithDataEditList(n int) (int, error) {
 	bytesDiscarded := 0
-	if c.lengths.Len() != 0 {
+	if c.lengths.Len() != 0 { //nolint
 		element := c.lengths.Front()
 		dataEditListEntry := element.Value.(dataEditListEntry)
 		if dataEditListEntry.skip {
@@ -302,7 +303,7 @@ func (c *Crypt4GHReader) discardWithDataEditList(n int) (int, error) {
 	for c.lengths.Len() != 0 && n != 0 {
 		element := c.lengths.Front()
 		dataEditListEntry := element.Value.(dataEditListEntry)
-		if dataEditListEntry.skip {
+		if dataEditListEntry.skip { //nolint
 			discarded, err := c.reader.Discard(int(dataEditListEntry.length))
 			c.lengths.Remove(element)
 			if err != nil {

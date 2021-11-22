@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+
 	"github.com/elixir-oslo/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
 )
@@ -17,10 +18,9 @@ type Segment struct {
 }
 
 // MarshalBinary implements encoding.BinaryMarshaler.MarshalBinary() method.
-func (s Segment) MarshalBinary() (data []byte, err error) {
+func (s *Segment) MarshalBinary() (data []byte, err error) {
 	dataEncryptionParametersHeaderPacket := s.DataEncryptionParametersHeaderPackets[0]
-	switch dataEncryptionParametersHeaderPacket.DataEncryptionMethod {
-	case headers.ChaCha20IETFPoly1305:
+	if dataEncryptionParametersHeaderPacket.DataEncryptionMethod == headers.ChaCha20IETFPoly1305 {
 		dataKey := dataEncryptionParametersHeaderPacket.DataKey[:]
 		if s.Nonce == nil {
 			s.Nonce = new([chacha20poly1305.NonceSize]byte)
@@ -42,8 +42,7 @@ func (s Segment) MarshalBinary() (data []byte, err error) {
 // UnmarshalBinary implements encoding.BinaryMarshaler.UnmarshalBinary() method.
 func (s *Segment) UnmarshalBinary(encryptedSegment []byte) error {
 	for _, dataEncryptionParametersHeaderPacket := range s.DataEncryptionParametersHeaderPackets {
-		switch dataEncryptionParametersHeaderPacket.DataEncryptionMethod {
-		case headers.ChaCha20IETFPoly1305:
+		if dataEncryptionParametersHeaderPacket.DataEncryptionMethod == headers.ChaCha20IETFPoly1305 {
 			dataKey := dataEncryptionParametersHeaderPacket.DataKey[:]
 			aead, err := chacha20poly1305.New(dataKey)
 			if err != nil {

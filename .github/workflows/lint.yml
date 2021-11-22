@@ -1,0 +1,20 @@
+name: Multilinters
+
+on:
+  push:
+
+jobs:
+
+  build:
+    name: Check code
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v2.5.2
+        with:
+          version: v1.42
+          args: -E gosec,goconst,nestif,bodyclose,rowserrcheck
