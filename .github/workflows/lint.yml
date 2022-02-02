@@ -16,5 +16,5 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2.5.2
         with:
-          version: v1.42
+          version: v1.44
           args: -E gosec,goconst,nestif,bodyclose,rowserrcheck
