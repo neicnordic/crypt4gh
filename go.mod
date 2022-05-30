@@ -3,7 +3,7 @@ module github.com/elixir-oslo/crypt4gh
 go 1.17
 
 require (
-	filippo.io/edwards25519 v1.0.0-rc.1
+	filippo.io/edwards25519 v1.0.0
 	github.com/dchest/bcrypt_pbkdf v0.0.0-20150205184540-83f37f9c154a
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/logrusorgru/aurora v2.0.3+incompatible
