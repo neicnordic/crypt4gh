@@ -64,6 +64,7 @@ get_binaries() {
   case "$PLATFORM" in
     darwin/386) BINARIES="crypt4gh" ;;
     darwin/amd64) BINARIES="crypt4gh" ;;
+    darwin/arm64) BINARIES="crypt4gh" ;;
     linux/386) BINARIES="crypt4gh" ;;
     linux/amd64) BINARIES="crypt4gh" ;;
     windows/386) BINARIES="crypt4gh" ;;
