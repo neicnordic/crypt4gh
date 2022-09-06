@@ -1,11 +1,9 @@
 # crypt4gh
-[![Build Status](https://github.com/elixir-oslo/crypt4gh/workflows/Go/badge.svg)](https://github.com/elixir-oslo/crypt4gh/actions)
-[![GoDoc](https://godoc.org/github.com/elixir-oslo/crypt4gh?status.svg)](https://pkg.go.dev/github.com/elixir-oslo/crypt4gh?tab=subdirectories)
-[![CodeFactor](https://www.codefactor.io/repository/github/elixir-oslo/crypt4gh/badge)](https://www.codefactor.io/repository/github/elixir-oslo/crypt4gh)
-[![Go Report Card](https://goreportcard.com/badge/github.com/elixir-oslo/crypt4gh)](https://goreportcard.com/report/github.com/elixir-oslo/crypt4gh)
-[![codecov](https://codecov.io/gh/elixir-oslo/crypt4gh/branch/master/graph/badge.svg)](https://codecov.io/gh/elixir-oslo/crypt4gh)
-![Sourcegraph for Repo Reference Count](https://img.shields.io/sourcegraph/rrc/github.com/elixir-oslo/crypt4gh)
-[![DeepSource](https://deepsource.io/gh/elixir-oslo/crypt4gh.svg/?label=active+issues&show_trend=true)](https://deepsource.io/gh/elixir-oslo/crypt4gh/?ref=repository-badge)
+[![Build Status](https://github.com/neicnordic/crypt4gh/workflows/Go/badge.svg)](https://github.com/neicnordic/crypt4gh/actions)
+[![GoDoc](https://godoc.org/github.com/neicnordic/crypt4gh?status.svg)](https://pkg.go.dev/github.com/neicnordic/crypt4gh?tab=subdirectories)
+[![Go Report Card](https://goreportcard.com/report/github.com/neicnordic/crypt4gh)](https://goreportcard.com/report/github.com/neicnordic/crypt4gh)
+[![codecov](https://codecov.io/gh/neicnordic/crypt4gh/branch/master/graph/badge.svg)](https://codecov.io/gh/neicnordic/crypt4gh)
+
 ## Overview
 ![](https://www.ga4gh.org/wp-content/uploads/Crypt4GH_comic.png)
 
@@ -19,16 +17,16 @@ Current version of specs can be found [here](http://samtools.github.io/hts-specs
 
 ### Linux
 ```
-curl -fsSL https://raw.githubusercontent.com/elixir-oslo/crypt4gh/master/install.sh | sudo sh
+curl -fsSL https://raw.githubusercontent.com/neicnordic/crypt4gh/master/install.sh | sudo sh
 ```
 
 ### MacOS
 ```
-curl -fsSL https://raw.githubusercontent.com/elixir-oslo/crypt4gh/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/neicnordic/crypt4gh/master/install.sh | sh
 ```
 
 ### Windows
-Go to the [releases page](https://github.com/elixir-oslo/crypt4gh/releases) and download the binary manually.
+Go to the [releases page](https://github.com/neicnordic/crypt4gh/releases) and download the binary manually.
 
 ## Usage
 ```

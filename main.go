@@ -10,11 +10,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/elixir-oslo/crypt4gh/keys"
-	"github.com/elixir-oslo/crypt4gh/streaming"
 	"github.com/jessevdk/go-flags"
 	"github.com/logrusorgru/aurora"
 	"github.com/manifoldco/promptui"
+	"github.com/neicnordic/crypt4gh/keys"
+	"github.com/neicnordic/crypt4gh/streaming"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 

@@ -7,8 +7,8 @@ import (
 	"errors"
 	"io"
 
-	"github.com/elixir-oslo/crypt4gh/model/body"
-	"github.com/elixir-oslo/crypt4gh/model/headers"
+	"github.com/neicnordic/crypt4gh/model/body"
+	"github.com/neicnordic/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 

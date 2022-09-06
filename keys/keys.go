@@ -19,7 +19,7 @@ import (
 
 	"filippo.io/edwards25519"
 
-	"github.com/elixir-oslo/crypt4gh/kdf"
+	"github.com/neicnordic/crypt4gh/kdf"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"

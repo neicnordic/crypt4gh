@@ -6,9 +6,9 @@ import (
 	"crypto/rand"
 	"io"
 
-	"github.com/elixir-oslo/crypt4gh/keys"
-	"github.com/elixir-oslo/crypt4gh/model/body"
-	"github.com/elixir-oslo/crypt4gh/model/headers"
+	"github.com/neicnordic/crypt4gh/keys"
+	"github.com/neicnordic/crypt4gh/model/body"
+	"github.com/neicnordic/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/nacl/box"
 )
