@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/elixir-oslo/crypt4gh/keys"
+	"github.com/neicnordic/crypt4gh/keys"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/nacl/box"
 )

@@ -1,6 +1,6 @@
 release:
   github:
-    owner: elixir-oslo
+    owner: neicnordic
     name: crypt4gh
 
 builds:

@@ -1,4 +1,4 @@
-module github.com/elixir-oslo/crypt4gh
+module github.com/neicnordic/crypt4gh
 
 go 1.17
 

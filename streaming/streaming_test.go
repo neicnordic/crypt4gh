@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elixir-oslo/crypt4gh/keys"
-	"github.com/elixir-oslo/crypt4gh/model/headers"
+	"github.com/neicnordic/crypt4gh/keys"
+	"github.com/neicnordic/crypt4gh/model/headers"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 

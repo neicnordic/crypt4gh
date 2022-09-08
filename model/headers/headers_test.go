@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elixir-oslo/crypt4gh/keys"
+	"github.com/neicnordic/crypt4gh/keys"
 )
 
 const crypt4gh_x25519_sec = `-----BEGIN CRYPT4GH ENCRYPTED PRIVATE KEY-----
