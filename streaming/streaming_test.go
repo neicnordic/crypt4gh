@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -113,7 +112,7 @@ func TestReencryption(t *testing.T) {
 					t.Fail()
 				}
 			}
-			all, err := ioutil.ReadAll(reader)
+			all, err := io.ReadAll(reader)
 			if err != nil {
 				t.Error(err)
 			}
@@ -121,7 +120,7 @@ func TestReencryption(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			inBytes, err := ioutil.ReadAll(inFile)
+			inBytes, err := io.ReadAll(inFile)
 			if err != nil {
 				t.Error(err)
 			}
@@ -181,7 +180,7 @@ func TestReencryptionWithDataEditListInCrypt4GHWriterNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	all, err := ioutil.ReadAll(reader)
+	all, err := io.ReadAll(reader)
 	if err != nil {
 		t.Error(err)
 	}
@@ -189,7 +188,7 @@ func TestReencryptionWithDataEditListInCrypt4GHWriterNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	inBytes, err := ioutil.ReadAll(inFile)
+	inBytes, err := io.ReadAll(inFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -244,7 +243,7 @@ func TestReencryptionWithDataEditListInCrypt4GHReaderNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	all, err := ioutil.ReadAll(reader)
+	all, err := io.ReadAll(reader)
 	if err != nil {
 		t.Error(err)
 	}
@@ -252,7 +251,7 @@ func TestReencryptionWithDataEditListInCrypt4GHReaderNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	inBytes, err := ioutil.ReadAll(inFile)
+	inBytes, err := io.ReadAll(inFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -315,7 +314,7 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	if discarded != toDiscard {
 		t.Fail()
 	}
-	all, err := ioutil.ReadAll(reader)
+	all, err := io.ReadAll(reader)
 	if err != nil {
 		t.Error(err)
 	}

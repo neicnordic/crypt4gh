@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 
 	"crypto/sha512"
 
@@ -68,7 +67,7 @@ type openSSLPrivateKey struct {
 // Supported keys: OpenSSH (Ed25519), OpenSSL (Ed25519, X25519), Crypt4GH (X25519).
 func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20poly1305.KeySize]byte, err error) {
 	var allBytes []byte
-	allBytes, err = ioutil.ReadAll(reader)
+	allBytes, err = io.ReadAll(reader)
 	if err != nil {
 		return
 	}
@@ -211,7 +210,7 @@ type openSSLPublicKey struct {
 // Supported keys: OpenSSH (Ed25519), OpenSSL (Ed25519, X25519), Crypt4GH (X25519).
 func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, err error) {
 	var allBytes []byte
-	allBytes, err = ioutil.ReadAll(reader)
+	allBytes, err = io.ReadAll(reader)
 	if err != nil {
 		return
 	}

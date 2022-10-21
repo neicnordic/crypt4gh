@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -200,7 +199,7 @@ func TestWriteOpenSSLX25519PrivateKey(t *testing.T) {
 	}
 	keyFile := strings.NewReader(ssl_x25519_sec)
 
-	keyFileBytes, err := ioutil.ReadAll(keyFile)
+	keyFileBytes, err := io.ReadAll(keyFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -221,7 +220,7 @@ func TestWriteOpenSSLX25519PublicKey(t *testing.T) {
 	}
 	keyFile := strings.NewReader(ssl_x25519_pub)
 
-	keyFileBytes, err := ioutil.ReadAll(keyFile)
+	keyFileBytes, err := io.ReadAll(keyFile)
 	if err != nil {
 		t.Error(err)
 	}
@@ -262,7 +261,7 @@ func TestWriteCrypt4GHX25519PublicKey(t *testing.T) {
 		t.Error(err)
 	}
 	keyFile := strings.NewReader(crypt4gh_x25519_pub)
-	keyFileBytes, err := ioutil.ReadAll(keyFile)
+	keyFileBytes, err := io.ReadAll(keyFile)
 	if err != nil {
 		t.Error(err)
 	}
