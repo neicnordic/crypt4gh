@@ -470,3 +470,75 @@ func (delhp DataEditListHeaderPacket) MarshalBinary() (data []byte, err error) {
 	}
 	return buffer.Bytes(), nil
 }
+
+
+func ReencryptHeader(oldHeader []byte, readerPrivateKey [chacha20poly1305.KeySize]byte, receivers [][chacha20poly1305.KeySize]byte) (newBinaryHeader []byte, err error){
+	
+	buffer := bytes.NewBuffer(oldHeader)
+	decryptedHeader, err := NewHeader(buffer, readerPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	dataEncryptionParametersHeaderPackets, err := decryptedHeader.GetDataEncryptionParameterHeaderPackets()
+	if err != nil {
+		return nil, err
+	}
+	dataEditList := decryptedHeader.GetDataEditListHeaderPacket()
+
+	firstDataEncryptionParametersHeader := (*dataEncryptionParametersHeaderPackets)[0]
+	for _, dataEncryptionParametersHeader := range *dataEncryptionParametersHeaderPackets {
+		if dataEncryptionParametersHeader.GetPacketType() != firstDataEncryptionParametersHeader.GetPacketType() {
+			return  nil, fmt.Errorf("different data encryption methods are not supported")
+		}
+	}
+	encryptedSegmentSize := firstDataEncryptionParametersHeader.EncryptedSegmentSize
+
+	// Create the new encrypted header packet
+	encHeaderPacket := DataEncryptionParametersHeaderPacket{
+		EncryptedSegmentSize: encryptedSegmentSize,
+		PacketType:           PacketType{PacketType: DataEncryptionParameters},
+		DataEncryptionMethod: ChaCha20IETFPoly1305,
+		DataKey:              firstDataEncryptionParametersHeader.DataKey,
+	}
+
+	headerPackets := make([]HeaderPacket, 0)
+
+	_, privateKey, err := keys.GenerateKeyPair()
+	if err != nil {
+		return nil, err
+	}
+	for _, readerPublicKey := range receivers {
+		headerPackets = append(headerPackets, HeaderPacket{
+			WriterPrivateKey:       privateKey,
+			ReaderPublicKey:        readerPublicKey,
+			HeaderEncryptionMethod: X25519ChaCha20IETFPoly1305,
+			EncryptedHeaderPacket:  encHeaderPacket,
+		})
+		if dataEditList != nil {
+			headerPackets = append(headerPackets, HeaderPacket{
+				WriterPrivateKey:       privateKey,
+				ReaderPublicKey:        readerPublicKey,
+				HeaderEncryptionMethod: X25519ChaCha20IETFPoly1305,
+				EncryptedHeaderPacket:  dataEditList,
+			})
+		}
+	}
+
+	var magicNumber [8]byte
+	copy(magicNumber[:], MagicNumber)
+
+	encHeader := Header{
+		MagicNumber:       magicNumber,
+		Version:           Version,
+		HeaderPacketCount: uint32(len(headerPackets)),
+		HeaderPackets:     headerPackets,
+	}
+
+	newBinaryHeader, err = encHeader.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	return newBinaryHeader, nil
+}

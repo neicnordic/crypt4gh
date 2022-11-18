@@ -27,9 +27,10 @@ var (
 )
 
 const (
-	generate = "generate"
-	encrypt  = "encrypt"
-	decrypt  = "decrypt"
+	generate  = "generate"
+	encrypt   = "encrypt"
+	decrypt   = "decrypt"
+	reencrypt = "reencrypt"
 )
 
 var generateOptions struct {
@@ -45,6 +46,7 @@ var encryptOptions struct {
 	PublicKeyFileName []string `short:"p" long:"pubkey" description:"Public key(s) to use" value-name:"FILE" required:"true"`
 	SecretKeyFileName string   `short:"s" long:"seckey" description:"Secret key to use" value-name:"FILE"`
 }
+
 var encryptOptionsParser = flags.NewParser(&encryptOptions, flags.None)
 
 var decryptOptions struct {
@@ -58,6 +60,15 @@ const (
 	usageString        = "Usage:\n  crypt4gh\n"
 	applicationOptions = "Application Options"
 )
+
+var reencryptOptionsParser = flags.NewParser(&reencryptOptions, flags.None)
+
+var reencryptOptions struct {
+	FileName          string   `short:"f" long:"file" description:"Input File to re-encrypt" value-name:"FILE" required:"true"`
+	OutFileName       string   `short:"o" long:"out" description:"Output File to after re-encrypt" value-name:"FILE" required:"true"`
+	PublicKeyFileName []string `short:"p" long:"pubkey" description:"Public key(s) to use" value-name:"FILE" required:"true"`
+	SecretKeyFileName string   `short:"s" long:"seckey" description:"Secret key to use" value-name:"FILE"`
+}
 
 func main() {
 	args := os.Args
@@ -91,6 +102,11 @@ func main() {
 
 	case decrypt:
 		safeExit := decryptOp(secretKeyPath)
+		if safeExit {
+			os.Exit(0)
+		}
+	case reencrypt:
+		safeExit := reencryptOp(secretKeyPath)
 		if safeExit {
 			os.Exit(0)
 		}
@@ -240,7 +256,7 @@ func fileExists(fileName string) bool {
 }
 
 func generateHelpMessage() string {
-	header := "crypt4gh [generate | encrypt | decrypt] <args>\n"
+	header := "crypt4gh [generate | encrypt | decrypt | reencrypt] <args>\n"
 
 	buffer := bytes.Buffer{}
 	generateOptionsParser.WriteHelp(&buffer)
@@ -260,9 +276,15 @@ func generateHelpMessage() string {
 	decryptUsage = strings.Replace(decryptUsage, usageString, "", 1)
 	decryptUsage = strings.Replace(decryptUsage, applicationOptions, " "+decrypt, 1)
 
+	buffer.Reset()
+	reencryptOptionsParser.WriteHelp(&buffer)
+	reencryptUsage := buffer.String()
+	reencryptUsage = strings.Replace(reencryptUsage, usageString, "", 1)
+	reencryptUsage = strings.Replace(reencryptUsage, applicationOptions, " "+reencrypt, 1)
+
 	env := "\n Environment variables:\n\n C4GH_SECRET_KEY\tIf defined, it will be used as the secret key file if parameter not set"
 
-	return header + generateUsage + encryptUsage + decryptUsage + env
+	return header + generateUsage + encryptUsage + decryptUsage + reencryptUsage + env
 }
 
 func generateKeys() bool {
@@ -443,5 +465,85 @@ func decryptOp(secretKeyPath string) bool {
 		return false
 	}
 	fmt.Println(aurora.Green(fmt.Sprintf("Success! %v bytes decrypted, file name: %v", written, outFileName)))
+	return false
+}
+
+func reencryptOp(secretKeyPath string) bool {
+	_, err := reencryptOptionsParser.Parse()
+	if err != nil {
+		fmt.Println(aurora.Red(err))
+		return false
+	}
+
+	pubkeyList := [][chacha20poly1305.KeySize]byte{}
+	for _, pubkey := range reencryptOptions.PublicKeyFileName {
+		publicKey, err := readPublicKey(pubkey)
+		if err != nil {
+			fmt.Println(aurora.Red(err))
+			return false
+		}
+		pubkeyList = append(pubkeyList, publicKey)
+	}
+
+	var privateKey [32]byte
+	if reencryptOptions.SecretKeyFileName == "" && secretKeyPath == "" {
+		fmt.Println(aurora.Red("Neither -sk option, nor C4GH_SECRET_KEY env var specified, aborting..."))
+		return false
+	} else if reencryptOptions.SecretKeyFileName != "" {
+		privateKey, err = readPrivateKey(reencryptOptions.SecretKeyFileName)
+	} else {
+		privateKey, err = readPrivateKey(secretKeyPath)
+	}
+	if err != nil {
+		fmt.Println(aurora.Red(err))
+		return false
+	}
+
+	safeExit := reencryptFile(privateKey, pubkeyList)
+
+	return safeExit
+}
+
+func reencryptFile(privateKey [32]byte, pubkeyList [][32]byte) bool {
+	inFile, err := os.Open(reencryptOptions.FileName)
+	if err != nil {
+		fmt.Println(aurora.Red(err))
+		return false
+	}
+	outFileName := reencryptOptions.OutFileName
+	if fileExists(outFileName) {
+		safeExit := promptYesNo(fmt.Sprintf("File with name '%v' already exists. Please, confirm overwriting", outFileName))
+
+		if safeExit {
+			return true
+		}
+	}
+	outFile, err := os.Create(outFileName)
+	if err != nil {
+		fmt.Println(aurora.Red(err))
+		return false
+	}
+	reencryptedFile, err := streaming.ReCrypt4GHWriter(inFile, privateKey, pubkeyList)
+	if err != nil {
+		fmt.Println(aurora.Red(err))
+		return false
+	}
+	written, err := io.Copy(outFile, reencryptedFile)
+	// written, err := reencryptedFile.WriteTo(outFile)
+	if err != nil {
+		fmt.Println(aurora.Red(err))
+		return false
+	}
+	err = inFile.Close()
+	if err != nil {
+		fmt.Println(aurora.Red(err))
+		return false
+	}
+	err = outFile.Close()
+	if err != nil {
+		fmt.Println(aurora.Red(err))
+		return false
+	}
+	fmt.Println(aurora.Green(fmt.Sprintf("Success! %v bytes encrypted, file name: %v", written, outFileName)))
 	return false
 }
