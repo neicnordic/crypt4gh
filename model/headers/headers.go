@@ -471,8 +471,9 @@ func (delhp DataEditListHeaderPacket) MarshalBinary() (data []byte, err error) {
 	return buffer.Bytes(), nil
 }
 
-
-func ReencryptHeader(oldHeader []byte, readerPrivateKey [chacha20poly1305.KeySize]byte, receivers [][chacha20poly1305.KeySize]byte) (newBinaryHeader []byte, err error){
+// ReEncryptHeader takes an old header, decrypts it and using a list of receivers public keys 
+// and re-encrypts the header for those keys while keeping the dataEditList packets 
+func ReEncryptHeader(oldHeader []byte, readerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKeyList [][chacha20poly1305.KeySize]byte) (newBinaryHeader []byte, err error){
 	
 	buffer := bytes.NewBuffer(oldHeader)
 	decryptedHeader, err := NewHeader(buffer, readerPrivateKey)
@@ -508,7 +509,7 @@ func ReencryptHeader(oldHeader []byte, readerPrivateKey [chacha20poly1305.KeySiz
 	if err != nil {
 		return nil, err
 	}
-	for _, readerPublicKey := range receivers {
+	for _, readerPublicKey := range readerPublicKeyList {
 		headerPackets = append(headerPackets, HeaderPacket{
 			WriterPrivateKey:       privateKey,
 			ReaderPublicKey:        readerPublicKey,
