@@ -33,6 +33,16 @@ VgFxmKhQ85221EUcMSEk6ophcCe8thlrtxjZk=
 -----END OPENSSH PRIVATE KEY-----
 `
 
+const new_recipient_pub = `-----BEGIN CRYPT4GH PUBLIC KEY-----
+NZfoJzFcOli3UWi/7U624h6fv2PufL1i2QPK8JkpmFg=
+-----END CRYPT4GH PUBLIC KEY-----
+`
+
+const new_recipient_sec = `-----BEGIN CRYPT4GH PRIVATE KEY-----
+YzRnaC12MQAGc2NyeXB0ABQAAAAA2l23+H3w2F3/Zylx5Gs2CwARY2hhY2hhMjBfcG9seTEzMDUAPOdxRff6MecEU3E3IMN/xfIwpMQNhpGVM2E+qExbEnZkoYx8sOuhWi8ASYmhFgxcrLj7Q9nOGQpXfukgpg==
+-----END CRYPT4GH PRIVATE KEY-----
+`
+
 func TestReencryption(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -439,6 +449,94 @@ func TestNewCrypt4GHWriterWithoutPrivateKey(t *testing.T) {
 		t.Error(err)
 	}
 	if !bytes.Equal(all[:837], inBytes[950:950+837]) {
+		t.Fail()
+	}
+}
+
+// We encrypt a file with a recipient's public key and then we re-encrypt it with another
+// new public key and we try to decrypt it with that
+func TestFileReEncryption(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(ssh_ed25519_sec_enc), []byte("123123"))
+	if err != nil {
+		t.Error(err)
+	}
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4gh_x25519_pub))
+	if err != nil {
+		t.Error(err)
+	}
+	buffer := bytes.Buffer{}
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = io.Copy(writer, inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	err = inFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Error(err)
+	}
+
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	newReaderPublicKey, err := keys.ReadPublicKey(strings.NewReader(new_recipient_pub))
+	if err != nil {
+		t.Error(err)
+	}
+	newReaderPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	newReaderPublicKeyList = append(newReaderPublicKeyList, newReaderPublicKey)
+
+	reencryptedFile, err := ReCrypt4GHWriter(&buffer, readerSecretKey, newReaderPublicKeyList)
+	if err != nil {
+		t.Error(err)
+	}
+
+	newReaderSecretKey, err := keys.ReadPrivateKey(strings.NewReader(new_recipient_sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	reader, err := NewCrypt4GHReader(reencryptedFile, newReaderSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	discarded, err := reader.Discard(0)
+	if err != nil {
+		if 0 != headers.UnencryptedDataSegmentSize*2 {
+			t.Error(err)
+		}
+	}
+	if discarded != 0 {
+		if 0 != headers.UnencryptedDataSegmentSize*2 {
+			t.Fail()
+		}
+	}
+	all, err := io.ReadAll(reader)
+	if err != nil {
+		t.Error(err)
+	}
+	inFile, err = os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	inBytes, err := io.ReadAll(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(all, inBytes[0:]) {
 		t.Fail()
 	}
 }
