@@ -379,3 +379,66 @@ func TestGetHeader(t *testing.T) {
 		t.Error()
 	}
 }
+
+func TestNewCrypt4GHWriterWithoutPrivateKey(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4gh_x25519_pub))
+	if err != nil {
+		t.Error(err)
+	}
+	dataEditListHeaderPacket := headers.DataEditListHeaderPacket{
+		PacketType:    headers.PacketType{PacketType: headers.DataEditList},
+		NumberLengths: 4,
+		Lengths:       []uint64{950, 837, 510, 847},
+	}
+	buffer := bytes.Buffer{}
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	if len(readerPublicKeyList) != 3 {
+		t.Errorf("expected %d public keys in list but got %d", 3, len(readerPublicKeyList))
+	}
+	writer, err := NewCrypt4GHWriterWithoutPrivateKey(&buffer, readerPublicKeyList, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = io.Copy(writer, inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	err = inFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	all, err := io.ReadAll(reader)
+	if err != nil {
+		t.Error(err)
+	}
+	inFile, err = os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	inBytes, err := io.ReadAll(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(all[:837], inBytes[950:950+837]) {
+		t.Fail()
+	}
+}

@@ -77,13 +77,11 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 
 // NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and reader's public key.
 // Writer's public key is generated automatically.
-func NewCrypt4GHWriterWithoutPrivateKey(writer io.Writer, readerPublicKey [chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
-	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+func NewCrypt4GHWriterWithoutPrivateKey(writer io.Writer, readerPublicKeyList [][chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
 	_, privateKey, err := keys.GenerateKeyPair()
 	if err != nil {
 		return nil, err
 	}
-	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
 	return NewCrypt4GHWriter(writer, privateKey, readerPublicKeyList, dataEditList)
 }
 
