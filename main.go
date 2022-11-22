@@ -121,6 +121,7 @@ func readPublicKey(fileName string) (publicKey [chacha20poly1305.KeySize]byte, e
 	if err != nil {
 		return
 	}
+
 	return keys.ReadPublicKey(publicKeyFile)
 }
 
@@ -147,6 +148,7 @@ func readPrivateKey(fileName string) (privateKey [chacha20poly1305.KeySize]byte,
 			return
 		}
 	}
+
 	return
 }
 
@@ -165,6 +167,7 @@ func writeKeyPair(name string, publicKey, privateKey [chacha20poly1305.KeySize]b
 		}
 
 	}
+
 	return nil
 }
 
@@ -244,6 +247,7 @@ func promptPassword(message string) (password string, err error) {
 		Label: message,
 		Mask:  '*',
 	}
+
 	return prompt.Run()
 }
 
@@ -252,6 +256,7 @@ func fileExists(fileName string) bool {
 	if os.IsNotExist(err) {
 		return false
 	}
+
 	return !info.IsDir()
 }
 
@@ -291,11 +296,13 @@ func generateKeys() bool {
 	_, err := generateOptionsParser.Parse()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	publicKey, privateKey, err := keys.GenerateKeyPair()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	if fileExists(generateOptions.Name+".pub.pem") || fileExists(generateOptions.Name+".sec.pem") {
@@ -308,9 +315,11 @@ func generateKeys() bool {
 		err = writeKeyPair(generateOptions.Name, publicKey, privateKey, generateOptions.Format, generateOptions.Password)
 		if err != nil {
 			fmt.Println(aurora.Red(err))
+
 			return false
 		}
 	}
+
 	return false
 }
 
@@ -318,6 +327,7 @@ func encryptOp(secretKeyPath string) bool {
 	_, err := encryptOptionsParser.Parse()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 
@@ -326,6 +336,7 @@ func encryptOp(secretKeyPath string) bool {
 		publicKey, err := readPublicKey(pubkey)
 		if err != nil {
 			fmt.Println(aurora.Red(err))
+
 			return false
 		}
 		pubkeyList = append(pubkeyList, publicKey)
@@ -346,6 +357,7 @@ func encryptOp(secretKeyPath string) bool {
 	}
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 
@@ -358,6 +370,7 @@ func encryptFile(privateKey [32]byte, pubkeyList [][32]byte) bool {
 	inFile, err := os.Open(encryptOptions.FileName)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	outFileName := encryptOptions.FileName + ".c4gh"
@@ -371,34 +384,41 @@ func encryptFile(privateKey [32]byte, pubkeyList [][32]byte) bool {
 	outFile, err := os.Create(outFileName)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	crypt4GHWriter, err := streaming.NewCrypt4GHWriter(outFile, privateKey, pubkeyList, nil)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	written, err := io.Copy(crypt4GHWriter, inFile)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	err = inFile.Close()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	err = crypt4GHWriter.Close()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	err = outFile.Close()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	fmt.Println(aurora.Green(fmt.Sprintf("Success! %v bytes encrypted, file name: %v", written, outFileName)))
+
 	return false
 }
 
@@ -406,11 +426,13 @@ func decryptOp(secretKeyPath string) bool {
 	_, err := decryptOptionsParser.Parse()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	var privateKey [32]byte
 	if decryptOptions.SecretKeyFileName == "" && secretKeyPath == "" {
 		fmt.Println(aurora.Red("Neither -sk option, nor C4GH_SECRET_KEY env var specified, aborting..."))
+
 		return false
 	} else if decryptOptions.SecretKeyFileName != "" {
 		privateKey, err = readPrivateKey(decryptOptions.SecretKeyFileName)
@@ -419,11 +441,13 @@ func decryptOp(secretKeyPath string) bool {
 	}
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	inFile, err := os.Open(decryptOptions.FileName)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	var outFileName string
@@ -442,29 +466,35 @@ func decryptOp(secretKeyPath string) bool {
 	outFile, err := os.Create(outFileName)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	crypt4GHReader, err := streaming.NewCrypt4GHReader(inFile, privateKey, nil)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	written, err := io.Copy(outFile, crypt4GHReader)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	err = inFile.Close()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	err = outFile.Close()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	fmt.Println(aurora.Green(fmt.Sprintf("Success! %v bytes decrypted, file name: %v", written, outFileName)))
+
 	return false
 }
 
@@ -472,6 +502,7 @@ func reencryptOp(secretKeyPath string) bool {
 	_, err := reencryptOptionsParser.Parse()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 
@@ -480,6 +511,7 @@ func reencryptOp(secretKeyPath string) bool {
 		publicKey, err := readPublicKey(pubkey)
 		if err != nil {
 			fmt.Println(aurora.Red(err))
+
 			return false
 		}
 		pubkeyList = append(pubkeyList, publicKey)
@@ -488,6 +520,7 @@ func reencryptOp(secretKeyPath string) bool {
 	var privateKey [32]byte
 	if reencryptOptions.SecretKeyFileName == "" && secretKeyPath == "" {
 		fmt.Println(aurora.Red("Neither -sk option, nor C4GH_SECRET_KEY env var specified, aborting..."))
+
 		return false
 	} else if reencryptOptions.SecretKeyFileName != "" {
 		privateKey, err = readPrivateKey(reencryptOptions.SecretKeyFileName)
@@ -496,6 +529,7 @@ func reencryptOp(secretKeyPath string) bool {
 	}
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 
@@ -508,6 +542,7 @@ func reencryptFile(privateKey [32]byte, pubkeyList [][32]byte) bool {
 	inFile, err := os.Open(reencryptOptions.FileName)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	outFileName := reencryptOptions.OutFileName
@@ -521,28 +556,34 @@ func reencryptFile(privateKey [32]byte, pubkeyList [][32]byte) bool {
 	outFile, err := os.Create(outFileName)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	reencryptedFile, err := streaming.ReCrypt4GHWriter(inFile, privateKey, pubkeyList)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	written, err := io.Copy(outFile, reencryptedFile)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	err = inFile.Close()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	err = outFile.Close()
 	if err != nil {
 		fmt.Println(aurora.Red(err))
+
 		return false
 	}
 	fmt.Println(aurora.Green(fmt.Sprintf("Success! %v bytes encrypted, file name: %v", written, outFileName)))
+
 	return false
 }

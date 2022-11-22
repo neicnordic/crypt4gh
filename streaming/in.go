@@ -50,6 +50,7 @@ func newCrypt4GHInternalReader(reader io.Reader, readerPrivateKey [chacha20poly1
 	crypt4GHInternalReader.encryptedSegmentSize = firstDataEncryptionParametersHeader.EncryptedSegmentSize
 	crypt4GHInternalReader.lastDecryptedSegment = -1
 	crypt4GHInternalReader.reader = reader
+
 	return &crypt4GHInternalReader, nil
 }
 
@@ -60,6 +61,7 @@ func (c *crypt4GHInternalReader) Read(p []byte) (n int, err error) {
 			return 0, err
 		}
 	}
+
 	return c.buffer.Read(p)
 }
 
@@ -70,6 +72,7 @@ func (c *crypt4GHInternalReader) ReadByte() (byte, error) {
 			return 0, err
 		}
 	}
+
 	return c.buffer.ReadByte()
 }
 
@@ -96,6 +99,7 @@ func (c *crypt4GHInternalReader) Discard(n int) (discarded int, err error) {
 		err = c.fillBuffer()
 		if err != nil {
 			c.buffer.Reset()
+
 			return discarded, err
 		}
 		discarded += headers.UnencryptedDataSegmentSize
@@ -103,6 +107,7 @@ func (c *crypt4GHInternalReader) Discard(n int) (discarded int, err error) {
 	}
 	delta := newDecryptedPosition - currentDecryptedPosition
 	c.buffer.Next(delta)
+
 	return discarded + delta, err
 }
 
@@ -118,6 +123,7 @@ func (c *crypt4GHInternalReader) discardSegments(segments int) (bytesDiscarded i
 			return
 		}
 	}
+
 	return
 }
 
@@ -128,6 +134,7 @@ func (c *crypt4GHInternalReader) discardSegment() (bytesDiscarded int, err error
 		return
 	}
 	c.lastDecryptedSegment++
+
 	return
 }
 
@@ -157,6 +164,7 @@ func (c *crypt4GHInternalReader) fillBuffer() error {
 		}
 		c.lastDecryptedSegment++
 	}
+
 	return nil
 }
 
@@ -200,6 +208,7 @@ func NewCrypt4GHReader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeyS
 			skip = !skip
 		}
 	}
+
 	return &crypt4GHReader, nil
 }
 
@@ -218,6 +227,7 @@ func (c *Crypt4GHReader) Read(p []byte) (n int, err error) {
 		}
 		p[n] = readByte
 	}
+
 	return
 }
 
@@ -226,6 +236,7 @@ func (c *Crypt4GHReader) ReadByte() (byte, error) {
 	if c.useDataEditList {
 		return c.readByteWithDataEditList()
 	}
+
 	return c.reader.ReadByte()
 }
 
@@ -248,11 +259,14 @@ func (c *Crypt4GHReader) readByteWithDataEditList() (byte, error) {
 		if c.bytesRead == length {
 			c.lengths.Remove(element)
 			c.bytesRead = 0
+
 			return c.readByteWithDataEditList()
 		}
 		c.bytesRead++
+
 		return c.reader.ReadByte()
 	}
+
 	return 0, io.EOF
 }
 
@@ -264,6 +278,7 @@ func (c *Crypt4GHReader) Discard(n int) (discarded int, err error) {
 	if c.useDataEditList {
 		return c.discardWithDataEditList(n)
 	}
+
 	return c.reader.Discard(n)
 }
 
@@ -287,6 +302,7 @@ func (c *Crypt4GHReader) discardWithDataEditList(n int) (int, error) {
 				bytesLeftToRead := length - c.bytesRead
 				if uint64(n) <= bytesLeftToRead {
 					c.bytesRead += uint64(n)
+
 					return c.reader.Discard(n)
 				}
 				discarded, err := c.reader.Discard(int(bytesLeftToRead))
@@ -318,6 +334,7 @@ func (c *Crypt4GHReader) discardWithDataEditList(n int) (int, error) {
 				}
 				c.bytesRead += uint64(discarded)
 				bytesDiscarded += discarded
+
 				return bytesDiscarded, nil
 			}
 			discarded, err := c.reader.Discard(int(length))
@@ -329,6 +346,7 @@ func (c *Crypt4GHReader) discardWithDataEditList(n int) (int, error) {
 			}
 		}
 	}
+
 	return bytesDiscarded, nil
 }
 

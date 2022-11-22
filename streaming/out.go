@@ -72,6 +72,7 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 	}
 	crypt4GHWriter.writer = writer
 	crypt4GHWriter.buffer.Grow(headers.UnencryptedDataSegmentSize)
+
 	return &crypt4GHWriter, nil
 }
 
@@ -103,6 +104,7 @@ func NewCrypt4GHWriterWithoutPrivateKey(writer io.Writer, readerPublicKeyList []
 	if err != nil {
 		return nil, err
 	}
+
 	return NewCrypt4GHWriter(writer, privateKey, readerPublicKeyList, dataEditList)
 }
 
@@ -114,6 +116,7 @@ func (c *Crypt4GHWriter) Write(p []byte) (n int, err error) {
 			return written, err
 		}
 	}
+
 	return written, nil
 }
 
@@ -124,6 +127,7 @@ func (c *Crypt4GHWriter) WriteByte(b byte) error {
 			return err
 		}
 	}
+
 	return c.buffer.WriteByte(b)
 }
 
@@ -146,5 +150,6 @@ func (c *Crypt4GHWriter) flushBuffer() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
