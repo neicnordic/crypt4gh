@@ -529,7 +529,6 @@ func reencryptFile(privateKey [32]byte, pubkeyList [][32]byte) bool {
 		return false
 	}
 	written, err := io.Copy(outFile, reencryptedFile)
-	// written, err := reencryptedFile.WriteTo(outFile)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
 		return false

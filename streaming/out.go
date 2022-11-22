@@ -74,13 +74,14 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 	crypt4GHWriter.buffer.Grow(headers.UnencryptedDataSegmentSize)
 	return &crypt4GHWriter, nil
 }
+
 // ReCrypt4GHWriter re-encrypt a file by re-encrypting the header
 // the header is then replace to the file with for the new recievers.
-// we keep reading the header and re-encrypting it separately so that ReEncryptHeader can be used independently 
+// we keep reading the header and re-encrypting it separately so that ReEncryptHeader can be used independently
 func ReCrypt4GHWriter(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKeyList [][chacha20poly1305.KeySize]byte) (io.Reader, error) {
-	
+
 	oldHeader, err := headers.ReadHeader(reader)
-	
+
 	if err != nil {
 		return nil, err
 	}

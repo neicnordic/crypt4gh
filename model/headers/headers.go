@@ -471,10 +471,10 @@ func (delhp DataEditListHeaderPacket) MarshalBinary() (data []byte, err error) {
 	return buffer.Bytes(), nil
 }
 
-// ReEncryptHeader takes an old header, decrypts it and using a list of receivers public keys 
-// and re-encrypts the header for those keys while keeping the dataEditList packets 
+// ReEncryptHeader takes an old header, decrypts it and using a list of receivers public keys
+// and re-encrypts the header for those keys while keeping the dataEditList packets
 func ReEncryptHeader(oldHeader []byte, readerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKeyList [][chacha20poly1305.KeySize]byte) (newBinaryHeader []byte, err error){
-	
+
 	buffer := bytes.NewBuffer(oldHeader)
 	decryptedHeader, err := NewHeader(buffer, readerPrivateKey)
 	if err != nil {
@@ -490,7 +490,7 @@ func ReEncryptHeader(oldHeader []byte, readerPrivateKey [chacha20poly1305.KeySiz
 	firstDataEncryptionParametersHeader := (*dataEncryptionParametersHeaderPackets)[0]
 	for _, dataEncryptionParametersHeader := range *dataEncryptionParametersHeaderPackets {
 		if dataEncryptionParametersHeader.GetPacketType() != firstDataEncryptionParametersHeader.GetPacketType() {
-			return  nil, fmt.Errorf("different data encryption methods are not supported")
+			return nil, fmt.Errorf("different data encryption methods are not supported")
 		}
 	}
 	encryptedSegmentSize := firstDataEncryptionParametersHeader.EncryptedSegmentSize
