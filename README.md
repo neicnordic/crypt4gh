@@ -40,7 +40,7 @@ crypt4gh [generate | encrypt | decrypt | reencrypt] <args>
 
  encrypt:
   -f, --file=FILE      File to encrypt
-  -p, --pubkey=FILE    Public key(s) to use
+  -p, --pubkey=FILE    Public key to use, this parameter can be used multiple times, one key per parameter
   -s, --seckey=FILE    Secret key to use
 
  decrypt:
@@ -50,7 +50,7 @@ crypt4gh [generate | encrypt | decrypt | reencrypt] <args>
  reencrypt:
   -f, --file=FILE      Input File to re-encrypt
   -o, --out=FILE       Output File to after re-encrypt
-  -p, --pubkey=FILE    Public key(s) to use
+  -p, --pubkey=FILE    Public key to use, this parameter can be used multiple times, one key per parameter
   -s, --seckey=FILE    Secret key to use
 
  Environment variables:

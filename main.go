@@ -43,7 +43,7 @@ var generateOptionsParser = flags.NewParser(&generateOptions, flags.None)
 
 var encryptOptions struct {
 	FileName          string   `short:"f"  long:"file" description:"File to encrypt" value-name:"FILE" required:"true"`
-	PublicKeyFileName []string `short:"p" long:"pubkey" description:"Public key(s) to use" value-name:"FILE" required:"true"`
+	PublicKeyFileName []string `short:"p" long:"pubkey" description:"Public key to use, this parameter can be used multiple times, one key per parameter" value-name:"FILE" required:"true"`
 	SecretKeyFileName string   `short:"s" long:"seckey" description:"Secret key to use" value-name:"FILE"`
 }
 
@@ -66,7 +66,7 @@ var reencryptOptionsParser = flags.NewParser(&reencryptOptions, flags.None)
 var reencryptOptions struct {
 	FileName          string   `short:"f" long:"file" description:"Input File to re-encrypt" value-name:"FILE" required:"true"`
 	OutFileName       string   `short:"o" long:"out" description:"Output File to after re-encrypt" value-name:"FILE" required:"true"`
-	PublicKeyFileName []string `short:"p" long:"pubkey" description:"Public key(s) to use" value-name:"FILE" required:"true"`
+	PublicKeyFileName []string `short:"p" long:"pubkey" description:"Public key to use, this parameter can be used multiple times, one key per parameter" value-name:"FILE" required:"true"`
 	SecretKeyFileName string   `short:"s" long:"seckey" description:"Secret key to use" value-name:"FILE"`
 }
 
