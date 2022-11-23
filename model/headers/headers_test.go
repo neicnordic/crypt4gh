@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/neicnordic/crypt4gh/keys"
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
 const crypt4gh_x25519_sec = `-----BEGIN CRYPT4GH ENCRYPTED PRIVATE KEY-----
@@ -28,6 +29,16 @@ qLE4/hhZiDTXKv7sxup9ZXeJ5ZS5pvFRFPqODCBG87JlbpNBra5pbywpyco89Gr+B0PHff
 PR84IfM7rbdETegmHhq6rX9HGSWhA2Hqa3ntZ2dDD+HUtzdGi3zRPAFLCF0uy3laaiBItC
 VgFxmKhQ85221EUcMSEk6ophcCe8thlrtxjZk=
 -----END OPENSSH PRIVATE KEY-----
+`
+
+const new_recipient_pub = `-----BEGIN CRYPT4GH PUBLIC KEY-----
+NZfoJzFcOli3UWi/7U624h6fv2PufL1i2QPK8JkpmFg=
+-----END CRYPT4GH PUBLIC KEY-----
+`
+
+const new_recipient_sec = `-----BEGIN CRYPT4GH PRIVATE KEY-----
+YzRnaC12MQAGc2NyeXB0ABQAAAAA2l23+H3w2F3/Zylx5Gs2CwARY2hhY2hhMjBfcG9seTEzMDUAPOdxRff6MecEU3E3IMN/xfIwpMQNhpGVM2E+qExbEnZkoYx8sOuhWi8ASYmhFgxcrLj7Q9nOGQpXfukgpg==
+-----END CRYPT4GH PRIVATE KEY-----
 `
 
 func TestHeaderMarshallingWithNonce(t *testing.T) {
@@ -238,6 +249,53 @@ func TestHeader_GetDataEditListHeaderPacket(t *testing.T) {
 		packet.NumberLengths != 2 ||
 		packet.Lengths[0] != 10 ||
 		packet.Lengths[1] != 100 {
+		t.Fail()
+	}
+}
+
+
+func TestReEncryptedHeader (t *testing.T) {
+	inFile, err := os.Open("../../test/sample.txt.enc")
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	oldHeader, err := ReadHeader(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	newReaderPublicKey, err := keys.ReadPublicKey(strings.NewReader(new_recipient_pub))
+	if err != nil {
+		t.Error(err)
+	}
+	newReaderPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	newReaderPublicKeyList = append(newReaderPublicKeyList, newReaderPublicKey)
+
+	newHeader, err := ReEncryptHeader(oldHeader, readerSecretKey, newReaderPublicKeyList)
+	if err != nil {
+		panic(err)
+	}
+
+	// if the headers are similar then that is not ok
+	if fmt.Sprintf("%v", oldHeader) == fmt.Sprintf("%v", newHeader) {
+		t.Fail()
+	}
+
+	// check the header contents is what we expect
+	newReaderSecretKey, err := keys.ReadPrivateKey(strings.NewReader(new_recipient_sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	buffer := bytes.NewBuffer(newHeader)
+	header, err := NewHeader(buffer, newReaderSecretKey)
+	if err != nil {
+		panic(err)
+	}
+	if fmt.Sprintf("%v", header) != "&{[99 114 121 112 116 52 103 104] 1 1 [{[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 108 0 <nil> {65564 {0} 0 [58 52 140 253 170 28 13 219 92 105 115 137 71 195 249 252 122 199 180 1 92 81 30 102 15 185 66 179 83 189 234 57]}}]}" {
 		t.Fail()
 	}
 }

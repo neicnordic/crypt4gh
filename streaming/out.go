@@ -75,6 +75,27 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 	return &crypt4GHWriter, nil
 }
 
+// ReCrypt4GHWriter re-encrypts a file by first re-encrypting the header and then attaching the new header to the file.
+// The header is decrypted with a known key and re-encrypted for the new recievers.
+// We keep reading the header and re-encrypting it separately so that ReEncryptHeader can be used independently
+func ReCrypt4GHWriter(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKeyList [][chacha20poly1305.KeySize]byte) (io.Reader, error) {
+
+	oldHeader, err := headers.ReadHeader(reader)
+
+	if err != nil {
+		return nil, err
+	}
+	newHeader, err := headers.ReEncryptHeader(oldHeader, readerPrivateKey, readerPublicKeyList)
+	if err != nil {
+		return nil, err
+	}
+
+	// glue those bytes back onto the reader
+	out := io.MultiReader(bytes.NewReader(newHeader), reader)
+	
+	return out, nil
+}
+
 // NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and reader's public key.
 // Writer's public key is generated automatically.
 func NewCrypt4GHWriterWithoutPrivateKey(writer io.Writer, readerPublicKeyList [][chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {

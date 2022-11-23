@@ -1,7 +1,7 @@
 # crypt4gh
 [![Build Status](https://github.com/neicnordic/crypt4gh/workflows/Go/badge.svg)](https://github.com/neicnordic/crypt4gh/actions)
 [![GoDoc](https://godoc.org/github.com/neicnordic/crypt4gh?status.svg)](https://pkg.go.dev/github.com/neicnordic/crypt4gh?tab=subdirectories)
-[![Go Report Card](https://goreportcard.com/report/github.com/neicnordic/crypt4gh)](https://goreportcard.com/report/github.com/neicnordic/crypt4gh)
+[![Go Report Card](https://goreportcard.com/badge/github.com/neicnordic/crypt4gh)](https://goreportcard.com/report/github.com/neicnordic/crypt4gh)
 [![codecov](https://codecov.io/gh/neicnordic/crypt4gh/branch/master/graph/badge.svg)](https://codecov.io/gh/neicnordic/crypt4gh)
 
 ## Overview
@@ -31,7 +31,7 @@ Go to the [releases page](https://github.com/neicnordic/crypt4gh/releases) and d
 ## Usage
 ```
 $ crypt4gh
-crypt4gh [generate | encrypt | decrypt] <args>
+crypt4gh [generate | encrypt | decrypt | reencrypt] <args>
 
  generate:
   -n, --name=                     Key pair name
@@ -40,11 +40,17 @@ crypt4gh [generate | encrypt | decrypt] <args>
 
  encrypt:
   -f, --file=FILE      File to encrypt
-  -p, --pubkey=FILE    Public key to use
+  -p, --pubkey=FILE    Public key to use, this parameter can be used multiple times, one key per parameter
   -s, --seckey=FILE    Secret key to use
 
  decrypt:
   -f, --file=FILE      File to decrypt
+  -s, --seckey=FILE    Secret key to use
+
+ reencrypt:
+  -f, --file=FILE      Input File to re-encrypt
+  -o, --out=FILE       Output File to after re-encrypt
+  -p, --pubkey=FILE    Public key to use, this parameter can be used multiple times, one key per parameter
   -s, --seckey=FILE    Secret key to use
 
  Environment variables:
