@@ -93,7 +93,7 @@ func ReCrypt4GHWriter(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySi
 
 	// glue those bytes back onto the reader
 	out := io.MultiReader(bytes.NewReader(newHeader), reader)
-	
+
 	return out, nil
 }
 

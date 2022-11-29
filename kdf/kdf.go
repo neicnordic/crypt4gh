@@ -4,6 +4,7 @@ package kdf
 import (
 	"crypto/sha512"
 
+	// package is old but corresponds to "golang.org/x/crypto/ssh/internal/bcrypt_pbkdf"
 	"github.com/dchest/bcrypt_pbkdf"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/pbkdf2"

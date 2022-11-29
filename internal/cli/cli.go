@@ -11,8 +11,8 @@ import (
 	"golang.org/x/term"
 )
 
-// YesNoPrompt asks yes/no questions using the label.
-func YesNoPrompt(label string, def bool) bool {
+// YesNoPrompt asks yes/no questions using a question.
+func YesNoPrompt(question string, def bool) bool {
 	choices := "Yes/no"
 	if !def {
 		choices = "yes/No"
@@ -22,7 +22,7 @@ func YesNoPrompt(label string, def bool) bool {
 	var s string
 
 	for {
-		fmt.Fprintf(os.Stdout, "%s (%s) ", aurora.Bold(label), aurora.Underline(choices))
+		fmt.Fprintf(os.Stdout, "%s (%s) ", aurora.Bold(question), aurora.Underline(choices))
 		s, _ = r.ReadString('\n')
 		s = strings.TrimSpace(s)
 		if s == "" {

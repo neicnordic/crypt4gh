@@ -564,7 +564,7 @@ func reencryptFile(privateKey [32]byte, pubkeyList [][32]byte) bool {
 
 		return false
 	}
-	fmt.Println(aurora.Green(fmt.Sprintf("Success! %v bytes encrypted, file name: %v", written, outFileName)))
+	fmt.Println(aurora.Green(fmt.Sprintf("Success! %v bytes encrypted, original encrypted file %v, re-encrypted file name: %v", written, inFile, outFileName)))
 
 	return false
 }
