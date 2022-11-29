@@ -13,6 +13,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/logrusorgru/aurora/v4"
 	"github.com/neicnordic/crypt4gh/internal/cli"
+	version "github.com/neicnordic/crypt4gh/internal/version"
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -20,11 +21,6 @@ import (
 
 type writeKeys func(writer io.Writer, key [32]byte) error
 type writeKeysPassword func(writer io.Writer, key [32]byte, password []byte) error
-
-var (
-	version = "dev"
-	date    = "unknown"
-)
 
 const (
 	generate  = "generate"
