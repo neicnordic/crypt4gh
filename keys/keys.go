@@ -83,10 +83,12 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 		// Sometimes the key is returned as a pointer, but sometimes as a value
 		if edPrivateKey, ok := key.(*ed25519.PrivateKey); ok {
 			PrivateKeyToCurve25519(&privateKey, *edPrivateKey)
+
 			return
 		}
 		edPrivateKey := key.(ed25519.PrivateKey)
 		PrivateKeyToCurve25519(&privateKey, edPrivateKey)
+
 		return
 	}
 
@@ -100,12 +102,14 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 			var edKeyBytes ed25519.PrivateKey
 			copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
 			PrivateKeyToCurve25519(&privateKey, edKeyBytes)
+
 			return
 		}
 
 		// Trying to read OpenSSL X25519 private key
 		if openSSLPrivateKey.Algorithm.Algorithm.Equal(x25519Algorithm) {
 			copy(privateKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+
 			return
 		}
 	}
@@ -177,6 +181,7 @@ func readCrypt4GHPrivateKey(pemBytes, passPhrase []byte) (privateKey [chacha20po
 			return privateKey, errors.New("invalid private key: KDF is 'none', but cipher is not 'none'")
 		}
 		copy(privateKey[:], payload)
+
 		return
 	}
 	if string(ciphername) != supportedCipherName {
@@ -198,6 +203,7 @@ func readCrypt4GHPrivateKey(pemBytes, passPhrase []byte) (privateKey [chacha20po
 		return privateKey, err
 	}
 	copy(privateKey[:], decryptedPrivateKey)
+
 	return
 }
 
@@ -221,6 +227,7 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 		marshalledKey := key.Marshal()
 		var edKeyBytes ed25519.PublicKey = marshalledKey[len(marshalledKey)-chacha20poly1305.KeySize:]
 		PublicKeyToCurve25519(&publicKey, edKeyBytes)
+
 		return
 	}
 
@@ -232,17 +239,20 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 		if openSSLPublicKey.Algorithm.Algorithm.Equal(ed25519Algorithm) {
 			var edKeyBytes ed25519.PublicKey = block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:]
 			PublicKeyToCurve25519(&publicKey, edKeyBytes)
+
 			return
 		}
 		// Trying to read OpenSSL X25519 public key
 		if openSSLPublicKey.Algorithm.Algorithm.Equal(x25519Algorithm) {
 			copy(publicKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+
 			return
 		}
 	}
 
 	// Interpreting bytes as Crypt4GH public key bytes (X25519)
 	copy(publicKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
+
 	return publicKey, nil
 }
 
@@ -265,6 +275,7 @@ func WriteOpenSSLX25519PrivateKey(writer io.Writer, privateKey [chacha20poly1305
 		Headers: nil,
 		Bytes:   marshalledPrivateKey,
 	}
+
 	return pem.Encode(writer, &block)
 }
 
@@ -283,6 +294,7 @@ func WriteOpenSSLX25519PublicKey(writer io.Writer, publicKey [chacha20poly1305.K
 		Headers: nil,
 		Bytes:   marshalledPublicKey,
 	}
+
 	return pem.Encode(writer, &block)
 }
 
@@ -357,6 +369,7 @@ func WriteCrypt4GHX25519PrivateKey(writer io.Writer, privateKey [chacha20poly130
 		Headers: nil,
 		Bytes:   buffer.Bytes(),
 	}
+
 	return pem.Encode(writer, &block)
 }
 
@@ -367,12 +380,14 @@ func WriteCrypt4GHX25519PublicKey(writer io.Writer, publicKey [chacha20poly1305.
 		Headers: nil,
 		Bytes:   publicKey[:],
 	}
+
 	return pem.Encode(writer, &block)
 }
 
 // DerivePublicKey derives public key from X25519 private key.
 func DerivePublicKey(privateKey [chacha20poly1305.KeySize]byte) (publicKey [chacha20poly1305.KeySize]byte) {
 	curve25519.ScalarBaseMult(&publicKey, &privateKey)
+
 	return
 }
 
@@ -383,6 +398,7 @@ func GenerateReaderSharedKey(privateKey, publicKey [chacha20poly1305.KeySize]byt
 	if err != nil {
 		return nil, err
 	}
+
 	return generateSharedKey(diffieHellmanKey, derivedPublicKey, publicKey)
 }
 
@@ -393,6 +409,7 @@ func GenerateWriterSharedKey(privateKey, publicKey [chacha20poly1305.KeySize]byt
 	if err != nil {
 		return nil, err
 	}
+
 	return generateSharedKey(diffieHellmanKey, publicKey, derivedPublicKey)
 }
 
@@ -401,6 +418,7 @@ func generateSharedKey(diffieHellmanKey []byte, readerPublicKey [32]byte, writer
 	diffieHellmanKey = append(diffieHellmanKey, writerPublicKey[:]...)
 	hash := blake2b.Sum512(diffieHellmanKey)
 	sharedKey := hash[:chacha20poly1305.KeySize]
+
 	return &sharedKey, nil
 }
 
@@ -432,5 +450,6 @@ func PublicKeyToCurve25519(curveBytes *[32]byte, edBytes ed25519.PublicKey) bool
 	}
 
 	copy(curveBytes[:], edPoint.BytesMontgomery())
+
 	return true
 }

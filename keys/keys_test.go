@@ -10,16 +10,16 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
-const crypt4gh_x25519_sec = `-----BEGIN CRYPT4GH ENCRYPTED PRIVATE KEY-----
+const crypt4ghX25519Sec = `-----BEGIN CRYPT4GH ENCRYPTED PRIVATE KEY-----
 YzRnaC12MQAGc2NyeXB0ABQAAAAAbY7POWSS/pYIR8zrPQZJ+QARY2hhY2hhMjBfcG9seTEzMDUAPKc4jWLf1h2T5FsPhNUYMMZ8y36ESATXOuloI0uxKxov3OZ/EbW0Rj6XY0pd7gcBLQDFwakYB7KMgKjiCAAA
 -----END CRYPT4GH ENCRYPTED PRIVATE KEY-----
 `
-const crypt4gh_x25519_pub = `-----BEGIN CRYPT4GH PUBLIC KEY-----
+const crypt4ghX25519Pub = `-----BEGIN CRYPT4GH PUBLIC KEY-----
 y67skGFKqYN+0n+1P0FyxYa/lHPUWiloN4kdrx7J3BA=
 -----END CRYPT4GH PUBLIC KEY-----
 `
 
-const ssh_ed25519_sec_enc = `-----BEGIN OPENSSH PRIVATE KEY-----
+const sshEd25519SecEnc = `-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCKYb3joJ
 xaRg4JDkveDbaTAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIA65hmgJeJakva2c
 tMpwAqifM/904s6O1zkwLeS5WiDDAAAAoLwLn+qb6fvbYvPn5VuK2IY94BGFlxPdsJElH0
@@ -30,10 +30,10 @@ VgFxmKhQ85221EUcMSEk6ophcCe8thlrtxjZk=
 `
 
 // not used but kept for backwards compatibility
-// const ssh_ed25519_pub_enc = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA65hmgJeJakva2ctMpwAqifM/904s6O1zkwLeS5WiDD dmytrot@Dmytros-MBP.Dlink
+// const sshEd25519PubEnc = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA65hmgJeJakva2ctMpwAqifM/904s6O1zkwLeS5WiDD dmytrot@Dmytros-MBP.Dlink
 // `
 
-const ssh_ed25519_sec = `-----BEGIN OPENSSH PRIVATE KEY-----
+const sshEd25519Sec = `-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
 QyNTUxOQAAACBkoVLW4MQ+9Bo/mpcLqYzx6U3iB3/7O6VjX8ddFb2B1QAAAKjEv9haxL/Y
 WgAAAAtzc2gtZWQyNTUxOQAAACBkoVLW4MQ+9Bo/mpcLqYzx6U3iB3/7O6VjX8ddFb2B1Q
@@ -43,31 +43,31 @@ ECAwQ=
 -----END OPENSSH PRIVATE KEY-----
 `
 
-const ssh_ed25519_pub = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGShUtbgxD70Gj+alwupjPHpTeIHf/s7pWNfx10VvYHV dmytrot@Dmytros-MacBook-Pro.local
+const sshEd25519Pub = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGShUtbgxD70Gj+alwupjPHpTeIHf/s7pWNfx10VvYHV dmytrot@Dmytros-MacBook-Pro.local
 `
 
-const ssl_ed25519_sec = `-----BEGIN PRIVATE KEY-----
+const sslEd25519Sec = `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEID7AAAQNzabPfcuNdPO7o3nFvxMQnBwrKA3h9L337Fjv
 -----END PRIVATE KEY-----
 `
 
-const ssl_ed25519_pub = `-----BEGIN PUBLIC KEY-----
+const sslEd25519Pub = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEApkjFepMCo7sEUGpN44Ao1cVi+S+LZSSG4uei6Ri+DW4=
 -----END PUBLIC KEY-----
 `
 
-const ssl_x25519_sec = `-----BEGIN PRIVATE KEY-----
+const sslX25519Sec = `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VuBCIEIGAqo41HT2yJoHhA3bWZHWAe662jgGLT3H52m0RUa09B
 -----END PRIVATE KEY-----
 `
 
-const ssl_x25519_pub = `-----BEGIN PUBLIC KEY-----
+const sslX25519Pub = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VuAyEA5k2+HqJT786BtuRXiB+QoD4u5ls4oEd2p1N2lV37zkA=
 -----END PUBLIC KEY-----
 `
 
 func TestDerivePublicKey(t *testing.T) {
-	privateKey, err := ReadPrivateKey(strings.NewReader(ssl_x25519_sec), nil)
+	privateKey, err := ReadPrivateKey(strings.NewReader(sslX25519Sec), nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -99,7 +99,7 @@ func TestReadKey(t *testing.T) {
 	}{
 		{
 			name:                   "crypt4gh-x25519-enc.sec.pem",
-			content:                crypt4gh_x25519_sec,
+			content:                crypt4ghX25519Sec,
 			readPrivateKeyFunction: ReadPrivateKey,
 			readPublicKeyFunction:  nil,
 			passPhrase:             []byte("password"),
@@ -107,7 +107,7 @@ func TestReadKey(t *testing.T) {
 		},
 		{
 			name:                   "crypt4gh-x25519-enc.pub.pem",
-			content:                crypt4gh_x25519_pub,
+			content:                crypt4ghX25519Pub,
 			readPrivateKeyFunction: nil,
 			readPublicKeyFunction:  ReadPublicKey,
 			passPhrase:             nil,
@@ -115,7 +115,7 @@ func TestReadKey(t *testing.T) {
 		},
 		{
 			name:                   "ssh-ed25519.sec.pem",
-			content:                ssh_ed25519_sec,
+			content:                sshEd25519Sec,
 			readPrivateKeyFunction: ReadPrivateKey,
 			readPublicKeyFunction:  nil,
 			passPhrase:             nil,
@@ -123,7 +123,7 @@ func TestReadKey(t *testing.T) {
 		},
 		{
 			name:                   "ssh-ed25519-enc.sec.pem",
-			content:                ssh_ed25519_sec_enc,
+			content:                sshEd25519SecEnc,
 			readPrivateKeyFunction: ReadPrivateKey,
 			readPublicKeyFunction:  nil,
 			passPhrase:             []byte("123123"),
@@ -131,7 +131,7 @@ func TestReadKey(t *testing.T) {
 		},
 		{
 			name:                   "ssh-ed25519.pub",
-			content:                ssh_ed25519_pub,
+			content:                sshEd25519Pub,
 			readPrivateKeyFunction: nil,
 			readPublicKeyFunction:  ReadPublicKey,
 			passPhrase:             nil,
@@ -139,7 +139,7 @@ func TestReadKey(t *testing.T) {
 		},
 		{
 			name:                   "ssl-ed25519.sec.pem",
-			content:                ssl_ed25519_sec,
+			content:                sslEd25519Sec,
 			readPrivateKeyFunction: ReadPrivateKey,
 			readPublicKeyFunction:  nil,
 			passPhrase:             nil,
@@ -147,7 +147,7 @@ func TestReadKey(t *testing.T) {
 		},
 		{
 			name:                   "ssl-ed25519.pub.pem",
-			content:                ssl_ed25519_pub,
+			content:                sslEd25519Pub,
 			readPrivateKeyFunction: nil,
 			readPublicKeyFunction:  ReadPublicKey,
 			passPhrase:             nil,
@@ -155,7 +155,7 @@ func TestReadKey(t *testing.T) {
 		},
 		{
 			name:                   "ssl-x25519.sec.pem",
-			content:                ssl_x25519_sec,
+			content:                sslX25519Sec,
 			readPrivateKeyFunction: ReadPrivateKey,
 			readPublicKeyFunction:  nil,
 			passPhrase:             nil,
@@ -163,7 +163,7 @@ func TestReadKey(t *testing.T) {
 		},
 		{
 			name:                   "ssl-x25519.pub.pem",
-			content:                ssl_x25519_pub,
+			content:                sslX25519Pub,
 			readPrivateKeyFunction: nil,
 			readPublicKeyFunction:  ReadPublicKey,
 			passPhrase:             nil,
@@ -188,7 +188,7 @@ func TestReadKey(t *testing.T) {
 }
 
 func TestWriteOpenSSLX25519PrivateKey(t *testing.T) {
-	privateKey, err := ReadPrivateKey(strings.NewReader(ssl_x25519_sec), nil)
+	privateKey, err := ReadPrivateKey(strings.NewReader(sslX25519Sec), nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -197,7 +197,7 @@ func TestWriteOpenSSLX25519PrivateKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	keyFile := strings.NewReader(ssl_x25519_sec)
+	keyFile := strings.NewReader(sslX25519Sec)
 
 	keyFileBytes, err := io.ReadAll(keyFile)
 	if err != nil {
@@ -209,7 +209,7 @@ func TestWriteOpenSSLX25519PrivateKey(t *testing.T) {
 }
 
 func TestWriteOpenSSLX25519PublicKey(t *testing.T) {
-	publicKey, err := ReadPublicKey(strings.NewReader(ssl_x25519_pub))
+	publicKey, err := ReadPublicKey(strings.NewReader(sslX25519Pub))
 	if err != nil {
 		t.Error(err)
 	}
@@ -218,7 +218,7 @@ func TestWriteOpenSSLX25519PublicKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	keyFile := strings.NewReader(ssl_x25519_pub)
+	keyFile := strings.NewReader(sslX25519Pub)
 
 	keyFileBytes, err := io.ReadAll(keyFile)
 	if err != nil {
@@ -231,7 +231,7 @@ func TestWriteOpenSSLX25519PublicKey(t *testing.T) {
 
 func TestWriteCrypt4GHX25519PrivateKey(t *testing.T) {
 
-	privateKey, err := ReadPrivateKey(strings.NewReader(crypt4gh_x25519_sec), []byte("password"))
+	privateKey, err := ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -251,7 +251,7 @@ func TestWriteCrypt4GHX25519PrivateKey(t *testing.T) {
 
 func TestWriteCrypt4GHX25519PublicKey(t *testing.T) {
 
-	publicKey, err := ReadPublicKey(strings.NewReader(crypt4gh_x25519_pub))
+	publicKey, err := ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
 	if err != nil {
 		t.Error(err)
 	}
@@ -260,7 +260,7 @@ func TestWriteCrypt4GHX25519PublicKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	keyFile := strings.NewReader(crypt4gh_x25519_pub)
+	keyFile := strings.NewReader(crypt4ghX25519Pub)
 	keyFileBytes, err := io.ReadAll(keyFile)
 	if err != nil {
 		t.Error(err)
@@ -279,14 +279,14 @@ func TestGenerateSharedKey(t *testing.T) {
 	}{
 		{
 			name:           "Writer",
-			privateKeyFile: ssl_ed25519_sec,
-			publicKeyFile:  ssl_x25519_pub,
+			privateKeyFile: sslEd25519Sec,
+			publicKeyFile:  sslX25519Pub,
 			hash:           "714a52792bf2118408c156da7d4f2973586ab923e6e263b6f7bec70c26eede97",
 		},
 		{
 			name:           "Reader",
-			privateKeyFile: ssl_ed25519_sec,
-			publicKeyFile:  ssl_x25519_pub,
+			privateKeyFile: sslEd25519Sec,
+			publicKeyFile:  sslX25519Pub,
 			hash:           "e777a8500676b5999cdfbd5cd832abe2f31b2580d9d6ef359b03c808134b8a6f",
 		},
 	}

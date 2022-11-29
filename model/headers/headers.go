@@ -116,6 +116,7 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 			return
 		}
 	}
+
 	return buffer.Bytes(), nil
 }
 
@@ -160,6 +161,7 @@ func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte
 	if len(header.HeaderPackets) == 0 {
 		return nil, errors.New("could not find matching public key header, decryption failed")
 	}
+
 	return &header, nil
 }
 
@@ -176,6 +178,7 @@ func (h Header) GetDataEncryptionParameterHeaderPackets() (*[]DataEncryptionPara
 	if len(dataEncryptionParametersHeaderPackets) == 0 {
 		return nil, errors.New("data encryption parameters not found in the header")
 	}
+
 	return &dataEncryptionParametersHeaderPackets, nil
 }
 
@@ -187,9 +190,11 @@ func (h Header) GetDataEditListHeaderPacket() *DataEditListHeaderPacket {
 		packetType := encryptedHeaderPacket.GetPacketType()
 		if packetType == DataEditList {
 			dataEditListHeaderPacket := encryptedHeaderPacket.(DataEditListHeaderPacket)
+
 			return &dataEditListHeaderPacket
 		}
 	}
+
 	return nil
 }
 
@@ -218,6 +223,7 @@ func (h Header) MarshalBinary() (data []byte, err error) {
 			return nil, err
 		}
 	}
+
 	return buffer.Bytes(), nil
 }
 
@@ -252,6 +258,7 @@ func NewHeaderPacket(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySiz
 		return nil, err
 	}
 	headerPacket.EncryptedHeaderPacket = *encryptedHeaderPacket
+
 	return &headerPacket, nil
 }
 
@@ -311,6 +318,7 @@ func (hp *HeaderPacket) MarshalBinary() (data []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return buffer.Bytes(), nil
 }
 
@@ -347,6 +355,7 @@ func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, readerPrivateKey [c
 		// this means we can proceed to the next reader
 		// if it still errors, then we cannot decrypt the file
 		publicKey := keys.DerivePublicKey(readerPrivateKey)
+
 		return nil, &HeaderReaderError{ReaderPublicKey: hex.EncodeToString(publicKey[:])}
 	}
 	decryptedPayloadReader := bytes.NewReader(decryptedPayload)
@@ -424,6 +433,7 @@ func (dephp DataEncryptionParametersHeaderPacket) MarshalBinary() (data []byte, 
 	if err != nil {
 		return nil, err
 	}
+
 	return buffer.Bytes(), nil
 }
 
@@ -450,6 +460,7 @@ func NewDataEditListHeaderPacket(reader io.Reader) (*DataEditListHeaderPacket, e
 		}
 		dataEditListHeaderPacket.Lengths = append(dataEditListHeaderPacket.Lengths, length)
 	}
+
 	return &dataEditListHeaderPacket, nil
 }
 
@@ -468,6 +479,7 @@ func (delhp DataEditListHeaderPacket) MarshalBinary() (data []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return buffer.Bytes(), nil
 }
 
