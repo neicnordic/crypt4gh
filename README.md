@@ -7,9 +7,6 @@
 ## Overview
 ![](https://www.ga4gh.org/wp-content/uploads/Crypt4GH_comic.png)
 
-## File structure
-![](https://habrastorage.org/webt/yn/y2/pk/yny2pkp68sccx1vbvmodz-hfpzm.png)
-
 ## Specification
 Current version of specs can be found [here](http://samtools.github.io/hts-specs/crypt4gh.pdf).
 
@@ -55,5 +52,38 @@ crypt4gh [generate | encrypt | decrypt | reencrypt] <args>
 
  Environment variables:
 
- C4GH_SECRET_KEY        If defined, it will be used as the secret key file if parameter not set
+ C4GH_SECRET_KEY	If defined, it will be used as the secret key file if parameter not set parameter not set
+```
+
+### Examples
+
+#### Generate Keys
+```
+crypt4gh generate -n=recipient-A
+crypt4gh generate -n=recipient-B
+crypt4gh generate -n=sender-C
+```
+
+#### Encrypt Files
+
+```
+crypt4gh encrypt -f sample.txt -s sender-C.sec.pem -p recipient-A.pub
+```
+
+```
+crypt4gh encrypt -f sample.txt -s sender-C.sec.pem -p recipient-A.pub -p recipient-B.pub
+```
+#### Decrypt Files
+
+```
+crypt4gh decrypt -f sample.txt.c4gh -s recipient-A.sec.pem
+```
+
+#### Re-Encrypt Files
+```
+crypt4gh encrypt -f sample.txt -s sender-C.sec.pem -p recipient-A.pub
+crypt4gh reencrypt -f sample.txt.c4gh -s recipient-A.sec.pem -p recipient-B.pub  -p recipient-A.pub -o cool.c4gh
+crypt4gh decrypt -f cool.c4gh -s recipient-A.sec.pem
+crypt4gh decrypt -f cool.c4gh -s recipient-B.sec.pem
+
 ```
