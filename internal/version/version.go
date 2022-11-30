@@ -11,7 +11,7 @@ var Version = "1.6.1"
 
 // If this is "" (empty string) then it means that it is a final release.
 // Otherwise, this is a pre-release e.g. "dev", "beta", "rc1", etc.
-var VersionMarker = "dev"
+var VersionMarker = ""
 
 // PackageVersion is an instance of version.Version.
 var PackageVersion *version.Version
