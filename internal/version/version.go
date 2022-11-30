@@ -16,6 +16,9 @@ var VersionMarker = "dev"
 // PackageVersion is an instance of version.Version.
 var PackageVersion *version.Version
 
+// PackageVersion is an instance of version.Version.
+const Packagename = "crypt4gh"
+
 func init() {
 	PackageVersion = version.Must(version.NewVersion(Version))
 }
