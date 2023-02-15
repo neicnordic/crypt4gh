@@ -67,11 +67,11 @@ crypt4gh generate -n=sender-C
 #### Encrypt Files
 
 ```
-crypt4gh encrypt -f sample.txt -s sender-C.sec.pem -p recipient-A.pub
+crypt4gh encrypt -f sample.txt -s sender-C.sec.pem -p recipient-A.pub.pem
 ```
 Multiple recipients can be added with by using the `-p` parameter multiple times
 ```
-crypt4gh encrypt -f sample.txt -s sender-C.sec.pem -p recipient-A.pub -p recipient-B.pub
+crypt4gh encrypt -f sample.txt -s sender-C.sec.pem -p recipient-A.pub.pem -p recipient-B.pub.pem
 ```
 #### Decrypt Files
 
@@ -82,8 +82,8 @@ crypt4gh decrypt -f sample.txt.c4gh -s recipient-A.sec.pem
 #### Re-Encrypt Files
 Re-encrypting a file will completely replace the old header with a new one. If the file is intended to be decrypted by multiple recipients, all relevant public keys must be given again on re-encryption.
 ```
-crypt4gh encrypt -f sample.txt -s sender-C.sec.pem -p recipient-A.pub
-crypt4gh reencrypt -f sample.txt.c4gh -s recipient-A.sec.pem -p recipient-B.pub  -p recipient-A.pub -o cool.c4gh
+crypt4gh encrypt -f sample.txt -s sender-C.sec.pem -p recipient-A.pub.pem
+crypt4gh reencrypt -f sample.txt.c4gh -s recipient-A.sec.pem -p recipient-B.pub.pem  -p recipient-A.pub.pem -o cool.c4gh
 crypt4gh decrypt -f cool.c4gh -s recipient-A.sec.pem
 crypt4gh decrypt -f cool.c4gh -s recipient-B.sec.pem
 ```
