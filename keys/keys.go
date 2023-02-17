@@ -5,6 +5,7 @@ package keys
 import (
 	"bytes"
 	"crypto/cipher"
+	"crypto/ecdh"
 	"crypto/rand"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -64,7 +65,7 @@ type openSSLPrivateKey struct {
 }
 
 // ReadPrivateKey reads private key from io.Reader.
-// Supported keys: OpenSSH (Ed25519), OpenSSL (Ed25519, X25519), Crypt4GH (X25519).
+// Supported keys: OpenSSH (Ed25519, ECDH X25519), OpenSSL (Ed25519, X25519), Crypt4GH (X25519).
 func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20poly1305.KeySize]byte, err error) {
 	var allBytes []byte
 	allBytes, err = io.ReadAll(reader)
@@ -72,7 +73,7 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 		return
 	}
 
-	// Trying to read OpenSSH Ed25519 private key
+	// Trying to read OpenSSH Ed25519 and ECDH X25519 private keys
 	var key interface{}
 	if passPhrase == nil {
 		key, err = ssh.ParseRawPrivateKey(allBytes)
@@ -81,13 +82,17 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 	}
 	if err == nil {
 		// Sometimes the key is returned as a pointer, but sometimes as a value
-		if edPrivateKey, ok := key.(*ed25519.PrivateKey); ok {
-			PrivateKeyToCurve25519(&privateKey, *edPrivateKey)
 
-			return
+		switch v := key.(type) {
+		case ed25519.PrivateKey:
+			PrivateKeyToCurve25519(&privateKey, v)
+		case ecdh.PrivateKey:
+			privateKey = [32]byte(v.Bytes())
+		case *ecdh.PrivateKey:
+			privateKey = [32]byte(v.Bytes())
+		case *ed25519.PrivateKey:
+			PrivateKeyToCurve25519(&privateKey, *v)
 		}
-		edPrivateKey := key.(ed25519.PrivateKey)
-		PrivateKeyToCurve25519(&privateKey, edPrivateKey)
 
 		return
 	}
