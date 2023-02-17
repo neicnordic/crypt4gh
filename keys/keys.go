@@ -86,12 +86,12 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 		switch v := key.(type) {
 		case ed25519.PrivateKey:
 			PrivateKeyToCurve25519(&privateKey, v)
+		case *ed25519.PrivateKey:
+			PrivateKeyToCurve25519(&privateKey, *v)
 		case ecdh.PrivateKey:
 			privateKey = [32]byte(v.Bytes())
 		case *ecdh.PrivateKey:
 			privateKey = [32]byte(v.Bytes())
-		case *ed25519.PrivateKey:
-			PrivateKeyToCurve25519(&privateKey, *v)
 		}
 
 		return
