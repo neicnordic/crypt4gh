@@ -42,18 +42,13 @@ var x25519Algorithm = []int{1, 3, 101, 110}
 
 // GenerateKeyPair method generates X25519 key pair.
 func GenerateKeyPair() (publicKey, privateKey [chacha20poly1305.KeySize]byte, err error) {
-	edPublicKey, edPrivateKey, err := ed25519.GenerateKey(nil)
+	edCurve, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
 		return
 	}
+	privateKey = [32]byte(edCurve.Bytes())
 
-	var edPublicKeyBytes [chacha20poly1305.KeySize]byte
-	copy(edPublicKeyBytes[:], edPublicKey)
-	PublicKeyToCurve25519(&publicKey, edPublicKey)
-
-	var edPrivateKeyBytes [chacha20poly1305.KeySize * 2]byte
-	copy(edPrivateKeyBytes[:], edPrivateKey)
-	PrivateKeyToCurve25519(&privateKey, edPrivateKey)
+	publicKey = [32]byte(edCurve.PublicKey().Bytes())
 
 	return
 }
