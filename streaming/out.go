@@ -39,6 +39,7 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 		return nil, err
 	}
 
+	crypt4GHWriter.Rands.headerNonces = make([]*[chacha20poly1305.NonceSize]byte, 2*len(readerPublicKeyList))
 	err = crypt4GHWriter.init(writer, writerPrivateKey, readerPublicKeyList, dataEditList)
 	if err != nil {
 		return nil, err
@@ -111,20 +112,25 @@ func (c *Crypt4GHWriter) init(writer io.Writer,
 		DataKey:              c.Rands.dataKey,
 	}
 
+	i := 0
 	for _, readerPublicKey := range readerPublicKeyList {
 		headerPackets = append(headerPackets, headers.HeaderPacket{
 			WriterPrivateKey:       writerPrivateKey,
 			ReaderPublicKey:        readerPublicKey,
 			HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
 			EncryptedHeaderPacket:  c.dataEncryptionParametersHeaderPacket,
+			Nonce:                  c.Rands.headerNonces[i],
 		})
+		i++
 		if dataEditList != nil {
 			headerPackets = append(headerPackets, headers.HeaderPacket{
 				WriterPrivateKey:       writerPrivateKey,
 				ReaderPublicKey:        readerPublicKey,
 				HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
 				EncryptedHeaderPacket:  dataEditList,
+				Nonce:                  c.Rands.headerNonces[i],
 			})
+			i++
 		}
 	}
 	var magicNumber [8]byte
@@ -134,13 +140,17 @@ func (c *Crypt4GHWriter) init(writer io.Writer,
 		Version:           headers.Version,
 		HeaderPacketCount: uint32(len(headerPackets)),
 		HeaderPackets:     headerPackets,
-		Nonces:            c.Rands.headerNonces,
 	}
 	binaryHeader, err := c.header.MarshalBinary()
 	if err != nil {
 		return err
 	}
-	c.Rands.headerNonces = c.header.Nonces
+	if !c.Rands.replicate {
+		c.Rands.headerNonces = make([]*[chacha20poly1305.NonceSize]byte, len(c.header.HeaderPackets))
+		for i, hp := range c.header.HeaderPackets {
+			c.Rands.headerNonces[i] = hp.Nonce
+		}
+	}
 	_, err = writer.Write(binaryHeader)
 	if err != nil {
 		return err
