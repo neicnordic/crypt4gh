@@ -24,9 +24,9 @@ type Crypt4GHWriter struct {
 }
 
 type WriterRands struct {
-	DataKey      [chacha20poly1305.KeySize]byte
-	HeaderNonces []*[chacha20poly1305.NonceSize]byte
-	BodyNonces   []*[chacha20poly1305.NonceSize]byte
+	dataKey      [chacha20poly1305.KeySize]byte
+	headerNonces []*[chacha20poly1305.NonceSize]byte
+	bodyNonces   []*[chacha20poly1305.NonceSize]byte
 }
 
 // NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and corresponding keys.
@@ -43,7 +43,7 @@ func NewCrypt4GHWriter(
 		crypt4GHWriter.Rands = rands
 	} else {
 		crypt4GHWriter.Rands = &WriterRands{}
-		_, err := rand.Read(crypt4GHWriter.Rands.DataKey[:])
+		_, err := rand.Read(crypt4GHWriter.Rands.dataKey[:])
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +54,7 @@ func NewCrypt4GHWriter(
 		EncryptedSegmentSize: chacha20poly1305.NonceSize + headers.UnencryptedDataSegmentSize + box.Overhead,
 		PacketType:           headers.PacketType{PacketType: headers.DataEncryptionParameters},
 		DataEncryptionMethod: headers.ChaCha20IETFPoly1305,
-		DataKey:              crypt4GHWriter.Rands.DataKey,
+		DataKey:              crypt4GHWriter.Rands.dataKey,
 	}
 
 	for _, readerPublicKey := range readerPublicKeyList {
@@ -80,13 +80,13 @@ func NewCrypt4GHWriter(
 		Version:           headers.Version,
 		HeaderPacketCount: uint32(len(headerPackets)),
 		HeaderPackets:     headerPackets,
-		Nonces:            crypt4GHWriter.Rands.HeaderNonces,
+		Nonces:            crypt4GHWriter.Rands.headerNonces,
 	}
 	binaryHeader, err := crypt4GHWriter.header.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	crypt4GHWriter.Rands.HeaderNonces = crypt4GHWriter.header.Nonces
+	crypt4GHWriter.Rands.headerNonces = crypt4GHWriter.header.Nonces
 	_, err = writer.Write(binaryHeader)
 	if err != nil {
 		return nil, err
@@ -162,16 +162,16 @@ func (c *Crypt4GHWriter) flushBuffer() error {
 		DataEncryptionParametersHeaderPackets: []headers.DataEncryptionParametersHeaderPacket{c.dataEncryptionParametersHeaderPacket},
 		UnencryptedData:                       c.buffer.Bytes(),
 	}
-	if c.Rands.BodyNonces != nil {
-		segment.Nonce = c.Rands.BodyNonces[0]
-		c.Rands.BodyNonces = c.Rands.BodyNonces[1:]
+	if c.Rands.bodyNonces != nil {
+		segment.Nonce = c.Rands.bodyNonces[0]
+		c.Rands.bodyNonces = c.Rands.bodyNonces[1:]
 	}
 	c.buffer.Reset()
 	marshalledSegment, err := segment.MarshalBinary()
 	if err != nil {
 		return err
 	}
-	c.Rands.BodyNonces = append(c.Rands.BodyNonces, segment.Nonce)
+	c.Rands.bodyNonces = append(c.Rands.bodyNonces, segment.Nonce)
 	_, err = c.writer.Write(marshalledSegment)
 	if err != nil {
 		return err
