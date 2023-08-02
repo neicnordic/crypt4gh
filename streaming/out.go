@@ -30,69 +30,33 @@ type WriterRands struct {
 }
 
 // NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and corresponding keys.
-func NewCrypt4GHWriter(
-	writer io.Writer,
+func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKeyList [][chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
+	crypt4GHWriter := Crypt4GHWriter{Rands: &WriterRands{}}
+	_, err := rand.Read(crypt4GHWriter.Rands.dataKey[:])
+	if err != nil {
+		return nil, err
+	}
+
+	err = crypt4GHWriter.init(writer, writerPrivateKey, readerPublicKeyList, dataEditList)
+	if err != nil {
+		return nil, err
+	}
+
+	return &crypt4GHWriter, nil
+}
+
+func NewCrypt4GHWriterWithRands(writer io.Writer,
 	writerPrivateKey [chacha20poly1305.KeySize]byte,
 	readerPublicKeyList [][chacha20poly1305.KeySize]byte,
 	dataEditList *headers.DataEditListHeaderPacket,
 	rands *WriterRands,
 ) (*Crypt4GHWriter, error) {
-	crypt4GHWriter := Crypt4GHWriter{}
+	crypt4GHWriter := Crypt4GHWriter{Rands: rands}
 
-	if rands != nil {
-		crypt4GHWriter.Rands = rands
-	} else {
-		crypt4GHWriter.Rands = &WriterRands{}
-		_, err := rand.Read(crypt4GHWriter.Rands.dataKey[:])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	headerPackets := make([]headers.HeaderPacket, 0)
-	crypt4GHWriter.dataEncryptionParametersHeaderPacket = headers.DataEncryptionParametersHeaderPacket{
-		EncryptedSegmentSize: chacha20poly1305.NonceSize + headers.UnencryptedDataSegmentSize + box.Overhead,
-		PacketType:           headers.PacketType{PacketType: headers.DataEncryptionParameters},
-		DataEncryptionMethod: headers.ChaCha20IETFPoly1305,
-		DataKey:              crypt4GHWriter.Rands.dataKey,
-	}
-
-	for _, readerPublicKey := range readerPublicKeyList {
-		headerPackets = append(headerPackets, headers.HeaderPacket{
-			WriterPrivateKey:       writerPrivateKey,
-			ReaderPublicKey:        readerPublicKey,
-			HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
-			EncryptedHeaderPacket:  crypt4GHWriter.dataEncryptionParametersHeaderPacket,
-		})
-		if dataEditList != nil {
-			headerPackets = append(headerPackets, headers.HeaderPacket{
-				WriterPrivateKey:       writerPrivateKey,
-				ReaderPublicKey:        readerPublicKey,
-				HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
-				EncryptedHeaderPacket:  dataEditList,
-			})
-		}
-	}
-	var magicNumber [8]byte
-	copy(magicNumber[:], headers.MagicNumber)
-	crypt4GHWriter.header = headers.Header{
-		MagicNumber:       magicNumber,
-		Version:           headers.Version,
-		HeaderPacketCount: uint32(len(headerPackets)),
-		HeaderPackets:     headerPackets,
-		Nonces:            crypt4GHWriter.Rands.headerNonces,
-	}
-	binaryHeader, err := crypt4GHWriter.header.MarshalBinary()
+	err := crypt4GHWriter.init(writer, writerPrivateKey, readerPublicKeyList, dataEditList)
 	if err != nil {
 		return nil, err
 	}
-	crypt4GHWriter.Rands.headerNonces = crypt4GHWriter.header.Nonces
-	_, err = writer.Write(binaryHeader)
-	if err != nil {
-		return nil, err
-	}
-	crypt4GHWriter.writer = writer
-	crypt4GHWriter.buffer.Grow(headers.UnencryptedDataSegmentSize)
 
 	return &crypt4GHWriter, nil
 }
@@ -126,7 +90,60 @@ func NewCrypt4GHWriterWithoutPrivateKey(writer io.Writer, readerPublicKeyList []
 		return nil, err
 	}
 
-	return NewCrypt4GHWriter(writer, privateKey, readerPublicKeyList, dataEditList, nil)
+	return NewCrypt4GHWriter(writer, privateKey, readerPublicKeyList, dataEditList)
+}
+
+func (c *Crypt4GHWriter) init(writer io.Writer,
+	writerPrivateKey [chacha20poly1305.KeySize]byte,
+	readerPublicKeyList [][chacha20poly1305.KeySize]byte,
+	dataEditList *headers.DataEditListHeaderPacket,
+) error {
+	headerPackets := make([]headers.HeaderPacket, 0)
+	c.dataEncryptionParametersHeaderPacket = headers.DataEncryptionParametersHeaderPacket{
+		EncryptedSegmentSize: chacha20poly1305.NonceSize + headers.UnencryptedDataSegmentSize + box.Overhead,
+		PacketType:           headers.PacketType{PacketType: headers.DataEncryptionParameters},
+		DataEncryptionMethod: headers.ChaCha20IETFPoly1305,
+		DataKey:              c.Rands.dataKey,
+	}
+
+	for _, readerPublicKey := range readerPublicKeyList {
+		headerPackets = append(headerPackets, headers.HeaderPacket{
+			WriterPrivateKey:       writerPrivateKey,
+			ReaderPublicKey:        readerPublicKey,
+			HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
+			EncryptedHeaderPacket:  c.dataEncryptionParametersHeaderPacket,
+		})
+		if dataEditList != nil {
+			headerPackets = append(headerPackets, headers.HeaderPacket{
+				WriterPrivateKey:       writerPrivateKey,
+				ReaderPublicKey:        readerPublicKey,
+				HeaderEncryptionMethod: headers.X25519ChaCha20IETFPoly1305,
+				EncryptedHeaderPacket:  dataEditList,
+			})
+		}
+	}
+	var magicNumber [8]byte
+	copy(magicNumber[:], headers.MagicNumber)
+	c.header = headers.Header{
+		MagicNumber:       magicNumber,
+		Version:           headers.Version,
+		HeaderPacketCount: uint32(len(headerPackets)),
+		HeaderPackets:     headerPackets,
+		Nonces:            c.Rands.headerNonces,
+	}
+	binaryHeader, err := c.header.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	c.Rands.headerNonces = c.header.Nonces
+	_, err = writer.Write(binaryHeader)
+	if err != nil {
+		return err
+	}
+	c.writer = writer
+	c.buffer.Grow(headers.UnencryptedDataSegmentSize)
+
+	return nil
 }
 
 // Write method implements io.Writer.Write.
