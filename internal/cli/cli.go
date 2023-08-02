@@ -294,7 +294,7 @@ func encryptFile(privateKey [32]byte, pubkeyList [][32]byte) bool {
 
 		return false
 	}
-	crypt4GHWriter, err := streaming.NewCrypt4GHWriter(outFile, privateKey, pubkeyList, nil)
+	crypt4GHWriter, err := streaming.NewCrypt4GHWriter(outFile, privateKey, pubkeyList, nil, nil)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
 

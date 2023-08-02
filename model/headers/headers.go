@@ -59,6 +59,7 @@ type Header struct {
 	Version           uint32
 	HeaderPacketCount uint32
 	HeaderPackets     []HeaderPacket
+	Nonces            []*[chacha20poly1305.NonceSize]byte
 }
 
 type HeaderReaderError struct {
@@ -199,7 +200,7 @@ func (h Header) GetDataEditListHeaderPacket() *DataEditListHeaderPacket {
 }
 
 // MarshalBinary implements method MarshalBinary.BinaryMarshaler.
-func (h Header) MarshalBinary() (data []byte, err error) {
+func (h *Header) MarshalBinary() (data []byte, err error) {
 	buffer := bytes.Buffer{}
 	err = binary.Write(&buffer, binary.LittleEndian, h.MagicNumber)
 	if err != nil {
@@ -214,10 +215,15 @@ func (h Header) MarshalBinary() (data []byte, err error) {
 		return nil, err
 	}
 	for _, headerPacket := range h.HeaderPackets {
+		if h.Nonces != nil {
+			headerPacket.Nonce = h.Nonces[0]
+			h.Nonces = h.Nonces[1:]
+		}
 		marshalledHeaderPacket, err := headerPacket.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
+		h.Nonces = append(h.Nonces, headerPacket.Nonce)
 		err = binary.Write(&buffer, binary.LittleEndian, marshalledHeaderPacket)
 		if err != nil {
 			return nil, err

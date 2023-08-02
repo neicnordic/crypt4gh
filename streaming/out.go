@@ -20,22 +20,41 @@ type Crypt4GHWriter struct {
 	header                               headers.Header
 	dataEncryptionParametersHeaderPacket headers.DataEncryptionParametersHeaderPacket
 	buffer                               bytes.Buffer
+	Rands                                *WriterRands
+}
+
+type WriterRands struct {
+	DataKey      [chacha20poly1305.KeySize]byte
+	HeaderNonces []*[chacha20poly1305.NonceSize]byte
+	BodyNonces   []*[chacha20poly1305.NonceSize]byte
 }
 
 // NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and corresponding keys.
-func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKeyList [][chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
+func NewCrypt4GHWriter(
+	writer io.Writer,
+	writerPrivateKey [chacha20poly1305.KeySize]byte,
+	readerPublicKeyList [][chacha20poly1305.KeySize]byte,
+	dataEditList *headers.DataEditListHeaderPacket,
+	rands *WriterRands,
+) (*Crypt4GHWriter, error) {
 	crypt4GHWriter := Crypt4GHWriter{}
-	var sharedKey [chacha20poly1305.KeySize]byte
-	_, err := rand.Read(sharedKey[:])
-	if err != nil {
-		return nil, err
+
+	if rands != nil {
+		crypt4GHWriter.Rands = rands
+	} else {
+		crypt4GHWriter.Rands = &WriterRands{}
+		_, err := rand.Read(crypt4GHWriter.Rands.DataKey[:])
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	headerPackets := make([]headers.HeaderPacket, 0)
 	crypt4GHWriter.dataEncryptionParametersHeaderPacket = headers.DataEncryptionParametersHeaderPacket{
 		EncryptedSegmentSize: chacha20poly1305.NonceSize + headers.UnencryptedDataSegmentSize + box.Overhead,
 		PacketType:           headers.PacketType{PacketType: headers.DataEncryptionParameters},
 		DataEncryptionMethod: headers.ChaCha20IETFPoly1305,
-		DataKey:              sharedKey,
+		DataKey:              crypt4GHWriter.Rands.DataKey,
 	}
 
 	for _, readerPublicKey := range readerPublicKeyList {
@@ -61,11 +80,13 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 		Version:           headers.Version,
 		HeaderPacketCount: uint32(len(headerPackets)),
 		HeaderPackets:     headerPackets,
+		Nonces:            crypt4GHWriter.Rands.HeaderNonces,
 	}
 	binaryHeader, err := crypt4GHWriter.header.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
+	crypt4GHWriter.Rands.HeaderNonces = crypt4GHWriter.header.Nonces
 	_, err = writer.Write(binaryHeader)
 	if err != nil {
 		return nil, err
@@ -97,7 +118,7 @@ func ReCrypt4GHWriter(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySi
 	return out, nil
 }
 
-// NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and reader's public key.
+// NewCrypt4GHWriterWithoutPrivateKey method constructs streaming.Crypt4GHWriter instance from io.Writer and reader's public key.
 // Writer's public key is generated automatically.
 func NewCrypt4GHWriterWithoutPrivateKey(writer io.Writer, readerPublicKeyList [][chacha20poly1305.KeySize]byte, dataEditList *headers.DataEditListHeaderPacket) (*Crypt4GHWriter, error) {
 	_, privateKey, err := keys.GenerateKeyPair()
@@ -105,7 +126,7 @@ func NewCrypt4GHWriterWithoutPrivateKey(writer io.Writer, readerPublicKeyList []
 		return nil, err
 	}
 
-	return NewCrypt4GHWriter(writer, privateKey, readerPublicKeyList, dataEditList)
+	return NewCrypt4GHWriter(writer, privateKey, readerPublicKeyList, dataEditList, nil)
 }
 
 // Write method implements io.Writer.Write.
@@ -141,11 +162,16 @@ func (c *Crypt4GHWriter) flushBuffer() error {
 		DataEncryptionParametersHeaderPackets: []headers.DataEncryptionParametersHeaderPacket{c.dataEncryptionParametersHeaderPacket},
 		UnencryptedData:                       c.buffer.Bytes(),
 	}
+	if c.Rands.BodyNonces != nil {
+		segment.Nonce = c.Rands.BodyNonces[0]
+		c.Rands.BodyNonces = c.Rands.BodyNonces[1:]
+	}
 	c.buffer.Reset()
 	marshalledSegment, err := segment.MarshalBinary()
 	if err != nil {
 		return err
 	}
+	c.Rands.BodyNonces = append(c.Rands.BodyNonces, segment.Nonce)
 	_, err = c.writer.Write(marshalledSegment)
 	if err != nil {
 		return err

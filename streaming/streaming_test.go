@@ -86,7 +86,7 @@ func TestReencryption(t *testing.T) {
 			readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
 			readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
 			buffer := bytes.Buffer{}
-			writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
+			writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil, nil)
 			if err != nil {
 				t.Error(err)
 			}
@@ -166,7 +166,7 @@ func TestReencryptionWithDataEditListInCrypt4GHWriterNoDiscard(t *testing.T) {
 	buffer := bytes.Buffer{}
 	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
 	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
-	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, &dataEditListHeaderPacket)
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, &dataEditListHeaderPacket, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -223,7 +223,7 @@ func TestReencryptionWithDataEditListInCrypt4GHReaderNoDiscard(t *testing.T) {
 	buffer := bytes.Buffer{}
 	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
 	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
-	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -287,7 +287,7 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	buffer := bytes.Buffer{}
 	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
 	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
-	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -471,7 +471,7 @@ func TestFileReEncryption(t *testing.T) {
 	buffer := bytes.Buffer{}
 	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
 	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
-	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil, nil)
 	if err != nil {
 		t.Error(err)
 	}
