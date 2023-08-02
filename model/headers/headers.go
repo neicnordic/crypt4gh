@@ -214,21 +214,24 @@ func (h *Header) MarshalBinary() (data []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, headerPacket := range h.HeaderPackets {
+	nonces := h.Nonces
+	for i, headerPacket := range h.HeaderPackets {
 		if h.Nonces != nil {
-			headerPacket.Nonce = h.Nonces[0]
-			h.Nonces = h.Nonces[1:]
+			headerPacket.Nonce = nonces[i]
 		}
 		marshalledHeaderPacket, err := headerPacket.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
-		h.Nonces = append(h.Nonces, headerPacket.Nonce)
+		if h.Nonces == nil {
+			nonces = append(nonces, headerPacket.Nonce)
+		}
 		err = binary.Write(&buffer, binary.LittleEndian, marshalledHeaderPacket)
 		if err != nil {
 			return nil, err
 		}
 	}
+	h.Nonces = nonces
 
 	return buffer.Bytes(), nil
 }

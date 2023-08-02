@@ -28,6 +28,7 @@ type WriterRands struct {
 	dataKey      [chacha20poly1305.KeySize]byte
 	headerNonces []*[chacha20poly1305.NonceSize]byte
 	bodyNonces   []*[chacha20poly1305.NonceSize]byte
+	replicate    bool
 }
 
 // NewCrypt4GHWriter method constructs streaming.Crypt4GHWriter instance from io.Writer and corresponding keys.
@@ -55,6 +56,7 @@ func NewCrypt4GHWriterWithRands(writer io.Writer,
 	rands *WriterRands,
 ) (*Crypt4GHWriter, error) {
 	crypt4GHWriter := Crypt4GHWriter{Rands: rands}
+	crypt4GHWriter.Rands.replicate = true
 
 	err := crypt4GHWriter.init(writer, writerPrivateKey, readerPublicKeyList, dataEditList)
 	if err != nil {
@@ -182,7 +184,7 @@ func (c *Crypt4GHWriter) flushBuffer() error {
 		DataEncryptionParametersHeaderPackets: []headers.DataEncryptionParametersHeaderPacket{c.dataEncryptionParametersHeaderPacket},
 		UnencryptedData:                       c.buffer.Bytes(),
 	}
-	if c.Rands.bodyNonces != nil {
+	if c.Rands.replicate {
 		segment.Nonce = c.Rands.bodyNonces[0]
 		c.Rands.bodyNonces = c.Rands.bodyNonces[1:]
 	}
