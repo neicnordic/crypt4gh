@@ -540,3 +540,64 @@ func TestFileReEncryption(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestNewCrypt4GHWriterWithNonces(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
+	if err != nil {
+		t.Error(err)
+	}
+	buffer := bytes.Buffer{}
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	if len(readerPublicKeyList) != 3 {
+		t.Errorf("expected %d public keys in list but got %d", 3, len(readerPublicKeyList))
+	}
+	_, privateKey, err := keys.GenerateKeyPair()
+	if err != nil {
+		return
+	}
+	writer, err := NewCrypt4GHWriter(&buffer, privateKey, readerPublicKeyList, nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = io.Copy(writer, inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = inFile.Seek(0, io.SeekStart)
+	if err != nil {
+		t.Error(err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Error(err)
+	}
+
+	buffer2 := bytes.Buffer{}
+	writer2, err := NewCrypt4GHWriter(&buffer2, privateKey, readerPublicKeyList, nil, writer.Rands)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = io.Copy(writer2, inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	err = inFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	err = writer2.Close()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if bytes.Compare(buffer.Bytes(), buffer2.Bytes()) != 0 {
+		t.Fail()
+	}
+}
