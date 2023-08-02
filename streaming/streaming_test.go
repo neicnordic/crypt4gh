@@ -597,7 +597,7 @@ func TestNewCrypt4GHWriterWithNonces(t *testing.T) {
 		t.Error(err)
 	}
 
-	if bytes.Compare(buffer.Bytes(), buffer2.Bytes()) != 0 {
+	if !bytes.Equal(buffer.Bytes(), buffer2.Bytes()) {
 		t.Fail()
 	}
 }
