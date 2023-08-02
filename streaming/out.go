@@ -23,6 +23,7 @@ type Crypt4GHWriter struct {
 	Rands                                *WriterRands
 }
 
+// WriterRands contains all the random bytes generated during encryption.
 type WriterRands struct {
 	dataKey      [chacha20poly1305.KeySize]byte
 	headerNonces []*[chacha20poly1305.NonceSize]byte
@@ -45,6 +46,8 @@ func NewCrypt4GHWriter(writer io.Writer, writerPrivateKey [chacha20poly1305.KeyS
 	return &crypt4GHWriter, nil
 }
 
+// NewCrypt4GHWriterWithRands method constructs streaming.Crypt4GHWriter instance from io.Writer, corresponding keys,
+// and a prefilled streaming.WriterRands with which previous encryption results can be replicated.
 func NewCrypt4GHWriterWithRands(writer io.Writer,
 	writerPrivateKey [chacha20poly1305.KeySize]byte,
 	readerPublicKeyList [][chacha20poly1305.KeySize]byte,
