@@ -24,7 +24,7 @@ type crypt4GHInternalReader struct {
 	header []byte
 
 	// dataEncryptionParametersHeaderPackets may be one or more
-	// DataEncryptionParametersHeaderPacket:s. These provide e.g. symmetric
+	// DataEncryptionParametersHeaderPackets. These provide e.g. symmetric
 	// keys for decrypting segments.
 	dataEncryptionParametersHeaderPackets []headers.DataEncryptionParametersHeaderPacket
 
