@@ -107,11 +107,14 @@ func TestReencryption(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+
 			reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, nil)
 			if err != nil {
 				t.Error(err)
 			}
+
 			discarded, err := reader.Discard(test.discard)
+
 			if err != nil {
 				if test.discard != headers.UnencryptedDataSegmentSize*2 {
 					t.Error(err)
@@ -122,6 +125,7 @@ func TestReencryption(t *testing.T) {
 					t.Fail()
 				}
 			}
+
 			all, err := io.ReadAll(reader)
 			if err != nil {
 				t.Error(err)
@@ -130,6 +134,7 @@ func TestReencryption(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+
 			inBytes, err := io.ReadAll(inFile)
 			if err != nil {
 				t.Error(err)
@@ -138,6 +143,7 @@ func TestReencryption(t *testing.T) {
 			if test.discard > len(inBytes) {
 				toDiscard = len(inBytes)
 			}
+
 			if !bytes.Equal(all, inBytes[toDiscard:]) {
 				t.Fail()
 			}
@@ -202,6 +208,7 @@ func TestReencryptionWithDataEditListInCrypt4GHWriterNoDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	if !bytes.Equal(all[:837], inBytes[950:950+837]) {
 		t.Fail()
 	}
@@ -324,6 +331,7 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	if discarded != toDiscard {
 		t.Fail()
 	}
+
 	all, err := io.ReadAll(reader)
 	if err != nil {
 		t.Error(err)
@@ -359,6 +367,7 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	}
 	expectedText := strings.TrimSpace(string(firstLine) + "\n" + string(secondLine))
 	actualText := strings.TrimSpace(string(all))
+
 	if !strings.EqualFold(expectedText, actualText) {
 		t.Fail()
 	}
@@ -432,14 +441,17 @@ func TestNewCrypt4GHWriterWithoutPrivateKey(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 	reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, nil)
 	if err != nil {
 		t.Error(err)
 	}
+
 	all, err := io.ReadAll(reader)
 	if err != nil {
 		t.Error(err)
 	}
+
 	inFile, err = os.Open("../test/sample.txt")
 	if err != nil {
 		t.Error(err)
@@ -539,4 +551,435 @@ func TestFileReEncryption(t *testing.T) {
 	if !bytes.Equal(all, inBytes[0:]) {
 		t.Fail()
 	}
+}
+
+// TestConsumerToUnderlying verifies functionality of
+// consumerOffsetToEncryptedStreamOffset.
+func TestConsumerToUnderlying(t *testing.T) {
+	del := &headers.DataEditListHeaderPacket{NumberLengths: 0}
+	c := crypt4GHInternalReader{}
+
+	r, err := c.consumerOffsetToEncryptedStreamOffset(10)
+	if r != 10 || err != nil {
+		t.Errorf("Conversion of consumer to underlying offset without DEL failed")
+	}
+
+	c.dataEditList = del
+	r, err = c.consumerOffsetToEncryptedStreamOffset(10)
+	if r != 10 || err != nil {
+		t.Errorf("Conversion of consumer to underlying offset with 0-DEL failed")
+	}
+
+	del.NumberLengths = 4
+	del.Lengths = []uint64{10, 20, 30, 40}
+
+	r, err = c.consumerOffsetToEncryptedStreamOffset(10)
+	if r != 20 || err != nil {
+		t.Errorf("Conversion of consumer to underlying failed, first hole")
+	}
+
+	r, err = c.consumerOffsetToEncryptedStreamOffset(20)
+	if r != 60 || err != nil {
+		t.Errorf("Conversion of consumer to underlying failed, two holes")
+	}
+
+	r, err = c.consumerOffsetToEncryptedStreamOffset(200)
+	if r != 100 || err == nil {
+		t.Errorf("Conversion of consumer to underlying EOF failed, got %d, %v", r, err)
+	}
+
+	del.NumberLengths = 3
+	r, err = c.consumerOffsetToEncryptedStreamOffset(200)
+	if r != 240 || err != nil {
+		t.Errorf("Conversion of consumer to underlying last infinite failed")
+	}
+
+}
+
+// TestBrokenFileRead verifies proper errors on reading broken files
+func TestBrokenFileRead(t *testing.T) {
+	_, err := NewCrypt4GHReader(bytes.NewBuffer([]byte{}), [32]byte{}, nil)
+	if err == nil {
+		t.Errorf("Didn't get error for a reader for an empty file")
+	}
+
+	_, err = NewCrypt4GHReader(bytes.NewBuffer([]byte{'c', 'r'}), [32]byte{}, nil)
+	if err == nil {
+		t.Errorf("Didn't get error for a reader for an empty file")
+	}
+
+}
+
+// TestFillBuffer verifies fillBuffer functionality
+func TestFillBuffer(t *testing.T) {
+
+	c := crypt4GHInternalReader{encryptedSegmentSize: 1024}
+	c.reader = bytes.NewBuffer([]byte{})
+
+	err := c.fillBuffer()
+	if err == nil {
+		t.Errorf("Didn't get error for a reader for an empty file")
+	}
+
+	_, err = NewCrypt4GHReader(bytes.NewBuffer([]byte{'c', 'r'}), [32]byte{}, nil)
+	if err == nil {
+		t.Errorf("Didn't get error for a reader for an empty file")
+	}
+
+	del := &headers.DataEditListHeaderPacket{}
+	del.NumberLengths = 4
+	del.Lengths = []uint64{10, 20, 30, 40}
+	c.dataEditList = del
+
+	c.streamPos = 4000
+	err = c.fillBuffer()
+	if err == nil {
+		t.Errorf("Didn't get error for beyond file according to skiplist")
+	}
+}
+
+func TestClose(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
+	if err != nil {
+		t.Error(err)
+	}
+	dataEditListHeaderPacket := headers.DataEditListHeaderPacket{
+		PacketType:    headers.PacketType{PacketType: headers.DataEditList},
+		NumberLengths: 4,
+		Lengths:       []uint64{950, 837, 510, 847},
+	}
+	buffer := bytes.Buffer{}
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	if len(readerPublicKeyList) != 3 {
+		t.Errorf("expected %d public keys in list but got %d", 3, len(readerPublicKeyList))
+	}
+	writer, err := NewCrypt4GHWriterWithoutPrivateKey(&buffer, readerPublicKeyList, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = io.Copy(writer, inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	err = inFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	buf1 := buffer.Bytes()
+	buf2 := bytes.Clone(buf1)
+	bufferReader := bytes.NewReader(buf1)
+
+	reader, err := NewCrypt4GHReader(bufferReader, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = reader.Close()
+	if err != nil {
+		t.Error("Closing bytes.Reader failed")
+	}
+	closerReader := io.NopCloser(bytes.NewReader(buf2))
+
+	reader, err = NewCrypt4GHReader(closerReader, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = reader.Close()
+	if err != nil {
+		t.Error("Closing NopCloser failed")
+	}
+
+}
+
+func TestSeek(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+
+	inBytes, err := io.ReadAll(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err = inFile.Close(); err != nil {
+		t.Error(err)
+	}
+
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
+	if err != nil {
+		t.Error(err)
+	}
+	dataEditListHeaderPacket := headers.DataEditListHeaderPacket{
+		PacketType:    headers.PacketType{PacketType: headers.DataEditList},
+		NumberLengths: 4,
+		Lengths:       []uint64{950, 837, 510, 847},
+	}
+	buffer := bytes.Buffer{}
+
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	if len(readerPublicKeyList) != 3 {
+		t.Errorf("expected %d public keys in list but got %d", 3, len(readerPublicKeyList))
+	}
+	writer, err := NewCrypt4GHWriterWithoutPrivateKey(&buffer, readerPublicKeyList, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r, err := writer.Write(inBytes); err != nil || r != len(inBytes) {
+		t.Errorf("Problem when writing to cryptgh writer, r=%d, err=%v", r, err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	bufferReader := bytes.NewReader(buffer.Bytes())
+
+	reader, err := NewCrypt4GHReader(bufferReader, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = reader.Seek(0, 2)
+	if err == nil {
+		t.Error("Seeking from end should not be allowed")
+	}
+
+	_, err = reader.Seek(100, 10)
+	if err == nil {
+		t.Error("Bad whence should not be allowed")
+	}
+
+	r, err := reader.Seek(60, 0)
+	if err != nil || r != 60 {
+		t.Error("Seeking from start failed")
+	}
+
+	r, err = reader.Seek(50, 1)
+	if err != nil || r != 110 {
+		t.Error("Seeking forward failed")
+	}
+
+	all, err := io.ReadAll(reader)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !bytes.Equal(all[:727], inBytes[1060:1060+727]) {
+		t.Error("Mismatch after seek")
+	}
+
+	r, err = reader.Seek(10, 0)
+	if err != nil || r != 10 {
+		t.Error("Seeking backward failed")
+	}
+
+	all, err = io.ReadAll(reader)
+
+	if err != nil {
+		t.Errorf("Failed when reading after seek %v", err)
+	}
+
+	if !bytes.Equal(all[:827], inBytes[960:960+827]) || !bytes.Equal(all[827:827+847], inBytes[950+837+510:950+837+510+847]) {
+		t.Error("Mismatch after seek backwards")
+	}
+
+	// Refill buffer
+	buffer.Reset()
+	writer, err = NewCrypt4GHWriterWithoutPrivateKey(&buffer, readerPublicKeyList, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r, err := writer.Write(inBytes); err != nil || r != len(inBytes) {
+		t.Errorf("Problem when writing to cryptgh writer, r=%d, err=%v", r, err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Error(err)
+	}
+
+	dataEditListHeaderPacket.NumberLengths = 0
+	reader, err = NewCrypt4GHReader(&buffer, readerSecretKey, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Errorf("Error while making reader from buffer %v", err)
+	}
+
+	if r, err = reader.Seek(70000, 0); err != nil || r != 70000 {
+		t.Error("Seeking forward failed")
+	}
+
+	if r, err = reader.Seek(10, 0); err == nil || r == 10 {
+		t.Error("Seeking back worked when it wasn't expected")
+	}
+
+	buf := make([]byte, 10)
+	if s, err := reader.Read(buf); err != nil || s != 10 {
+		t.Error("Read after seek failed")
+	}
+
+	if !bytes.Equal(buf, inBytes[70000:70010]) {
+		t.Error("Mismatch after seek")
+	}
+
+	// Refill buffer
+	buffer.Reset()
+	writer, err = NewCrypt4GHWriterWithoutPrivateKey(&buffer, readerPublicKeyList, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if r, err := writer.Write(inBytes[:70225]); err != nil || r != len(inBytes) {
+		t.Errorf("Problem when writing to cryptgh writer, r=%d, err=%v", r, err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Error(err)
+	}
+
+	reader, err = NewCrypt4GHReader(&buffer, readerSecretKey, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Errorf("Error while making reader from buffer again %v", err)
+	}
+
+	if r, err = reader.Seek(70000, 0); err != nil || r != 70000 {
+		t.Errorf("Seeking a long bit failed (r=%d, err=%v)", r, err)
+	}
+
+	buf = make([]byte, 50000)
+	buf[225] = 42
+	buf[226] = 137
+
+	if s, err := reader.Read(buf); err != io.EOF || s != 225 {
+		t.Errorf("Read after seek failed (got s=%d, err=%v)", s, err)
+	}
+
+	if !bytes.Equal(buf[:225], inBytes[70000:70000+225]) {
+		t.Error("Read didn't return the expected data")
+	}
+
+	if buf[225] != 42 || buf[226] != 137 {
+		t.Error("Read touched data unexpectedly")
+	}
+
+}
+
+func TestSmallBuffer(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	inBytes, err := io.ReadAll(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err = inFile.Close(); err != nil {
+		t.Error(err)
+	}
+
+	inFile, err = os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
+	if err != nil {
+		t.Error(err)
+	}
+	dataEditListHeaderPacket := headers.DataEditListHeaderPacket{
+		PacketType:    headers.PacketType{PacketType: headers.DataEditList},
+		NumberLengths: 8,
+		Lengths:       []uint64{10, 20, 30, 40, 950, 837, 510, 847},
+	}
+	buffer := bytes.Buffer{}
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+
+	if len(readerPublicKeyList) != 3 {
+		t.Errorf("expected %d public keys in list but got %d", 3, len(readerPublicKeyList))
+	}
+	writer, err := NewCrypt4GHWriterWithoutPrivateKey(&buffer, readerPublicKeyList, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if _, err = io.Copy(writer, inFile); err != nil {
+		t.Error(err)
+	}
+
+	if err = inFile.Close(); err != nil {
+		t.Error(err)
+	}
+
+	if err = writer.Close(); err != nil {
+		t.Error(err)
+	}
+
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	bufferReader := bytes.NewReader(buffer.Bytes())
+
+	reader, err := NewCrypt4GHReader(bufferReader, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	buf := make([]byte, 5)
+
+	r, err := reader.Read(buf)
+	if err != nil || r != 5 {
+		t.Error("Seeking from end should not be allowed")
+	}
+
+	if !bytes.Equal(buf, inBytes[10:15]) {
+		t.Error("Mismatch after first read")
+	}
+
+	s, err := reader.Seek(18, 0)
+	if err != nil || s != 18 {
+		t.Error("Seeking failed")
+	}
+
+	r, err = reader.Read(buf)
+	if err != nil || r != 5 {
+		t.Errorf("Reading failed r=%d err=%v", r, err)
+	}
+
+	if !bytes.Equal(buf[:2], inBytes[28:30]) && !bytes.Equal(buf[2:], inBytes[60:63]) {
+		t.Error("Mismatch after second read")
+	}
+
 }
