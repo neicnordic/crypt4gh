@@ -120,7 +120,7 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 	}
 
 	// Interpreting bytes as Crypt4GH private key bytes (https://crypt4gh.readthedocs.io/en/latest/keys.html)
-	if string(block.Bytes[:7]) == magic {
+	if len(block.Bytes) > 8 && string(block.Bytes[:7]) == magic {
 		return readCrypt4GHPrivateKey(block.Bytes, passPhrase)
 	}
 
@@ -261,6 +261,9 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 		}
 	}
 
+	if len(block.Bytes) < chacha20poly1305.KeySize {
+		return publicKey, fmt.Errorf("Unsupported key file format")
+	}
 	// Interpreting bytes as Crypt4GH public key bytes (X25519)
 	copy(publicKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
 
