@@ -18,7 +18,10 @@ const crypt4ghX25519Pub = `-----BEGIN CRYPT4GH PUBLIC KEY-----
 y67skGFKqYN+0n+1P0FyxYa/lHPUWiloN4kdrx7J3BA=
 -----END CRYPT4GH PUBLIC KEY-----
 `
-
+const badPEM = `-----BEGIN SOMETHING-----
+y67s
+-----END SOMETHING-----
+`
 const sshEd25519SecEnc = `-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCKYb3joJ
 xaRg4JDkveDbaTAAAAEAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIA65hmgJeJakva2c
@@ -173,13 +176,17 @@ func TestReadKey(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
+			var err error
 			var key [chacha20poly1305.KeySize]byte
 			if test.readPrivateKeyFunction != nil {
-				key, _ = test.readPrivateKeyFunction(strings.NewReader(test.content), test.passPhrase)
+				key, err = test.readPrivateKeyFunction(strings.NewReader(test.content), test.passPhrase)
 			} else {
-				key, _ = test.readPublicKeyFunction(strings.NewReader(test.content))
+				key, err = test.readPublicKeyFunction(strings.NewReader(test.content))
 			}
 
+			if err != nil {
+				t.Errorf("Unexpected error: %v for test %s", err, test.name)
+			}
 			if hex.EncodeToString(key[:]) != test.hash {
 				t.Fail()
 			}
@@ -317,4 +324,28 @@ func TestGenerateSharedKey(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReadBrokenKey(t *testing.T) {
+
+	if _, err := ReadPrivateKey(strings.NewReader("error"), nil); err == nil {
+		t.Errorf("Didn't get an error on a faulty private key")
+	}
+
+	if _, err := ReadPublicKey(strings.NewReader("error")); err == nil {
+		t.Errorf("Didn't get an error on a faulty public key")
+	}
+
+	if _, err := ReadPrivateKey(strings.NewReader(badPEM), nil); err == nil {
+		t.Errorf("Didn't get an error on a faulty private key")
+	}
+
+	if _, err := ReadPublicKey(strings.NewReader(badPEM)); err == nil {
+		t.Errorf("Didn't get an error on a faulty public key")
+	}
+
+	if _, err := ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), nil); err == nil {
+		t.Errorf("Didn't get an error on an encrypted private key without password")
+	}
+
 }

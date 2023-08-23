@@ -95,6 +95,11 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 	// Not OpenSSH private key, assuming OpenSSL private key, trying to figure out type (Ed25519 or X25519)
 	block, _ := pem.Decode(allBytes)
 
+	if block == nil {
+		return [chacha20poly1305.KeySize]byte{}, fmt.Errorf("Read of unrecognized private key format failed; " +
+			"expected PEM encoded key")
+	}
+
 	var openSSLPrivateKey openSSLPrivateKey
 	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPrivateKey); err == nil {
 		// Trying to read OpenSSL Ed25519 private key and convert to X25519 private key
@@ -233,6 +238,12 @@ func ReadPublicKey(reader io.Reader) (publicKey [chacha20poly1305.KeySize]byte, 
 
 	// Not OpenSSH public key, assuming OpenSSL public key
 	block, _ := pem.Decode(allBytes)
+
+	if block == nil {
+		return [chacha20poly1305.KeySize]byte{}, fmt.Errorf("Read of unrecognized public key format failed; " +
+			"expected PEM encoded key")
+	}
+
 	var openSSLPublicKey openSSLPublicKey
 	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPublicKey); err == nil {
 		// Trying to read OpenSSL Ed25519 public key and convert to X25519 public key
