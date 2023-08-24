@@ -1,5 +1,4 @@
-// package main for reader, an example of what a crypt4gh file reader
-// can look like
+// package main for reader, an example of what a crypt4gh file reader can look like
 package main
 
 import (

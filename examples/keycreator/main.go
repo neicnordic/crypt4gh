@@ -1,5 +1,4 @@
-// package main for keycreator, an example of what a key creator
-// can look like
+// package main for keycreator, an example of what a key creator can look like
 package main
 
 import (

@@ -1,5 +1,4 @@
-// package main for writer, an example of what a crypt4gh file writer
-// can look like
+// package main for writer, an example of what a crypt4gh file writer can look like
 package main
 
 import (
