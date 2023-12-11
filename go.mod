@@ -3,7 +3,7 @@ module github.com/neicnordic/crypt4gh
 go 1.20
 
 require (
-	filippo.io/edwards25519 v1.0.0
+	filippo.io/edwards25519 v1.1.0
 	github.com/dchest/bcrypt_pbkdf v0.0.0-20150205184540-83f37f9c154a
 	github.com/hashicorp/go-version v1.6.0
 	github.com/jessevdk/go-flags v1.5.0
