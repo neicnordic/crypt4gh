@@ -399,6 +399,72 @@ func TestGetHeader(t *testing.T) {
 	}
 }
 
+func TestReencryptionWithDataEditListInCrypt4GHReaderDiscardStart(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(sshEd25519SecEnc), []byte("123123"))
+	if err != nil {
+		t.Error(err)
+	}
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
+	if err != nil {
+		t.Error(err)
+	}
+	buffer := bytes.Buffer{}
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = io.Copy(writer, inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	err = inFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Error(err)
+	}
+
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	dataEditListHeaderPacket := headers.DataEditListHeaderPacket{
+		PacketType:    headers.PacketType{PacketType: headers.DataEditList},
+		NumberLengths: 3,
+		Lengths:       []uint64{0, 100, 300},
+	}
+	reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Error(err)
+	}
+	all, err := io.ReadAll(reader)
+	if err != nil {
+		t.Error(err)
+	}
+	inFile, err = os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	inBytes, err := io.ReadAll(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+	if !bytes.Equal(all[:100], inBytes[:100]) {
+		t.Errorf("Different data before discard: %v vs %v", all[:100], inBytes[:100])
+	}
+	if !bytes.Equal(all[100:], inBytes[400:]) {
+		t.Errorf("Different data after discard: %v vs %v (truncated)", all[400:500], inBytes[100:200])
+	}
+}
+
 func TestNewCrypt4GHWriterWithoutPrivateKey(t *testing.T) {
 	inFile, err := os.Open("../test/sample.txt")
 	if err != nil {
