@@ -922,7 +922,7 @@ func TestSeek(t *testing.T) {
 		t.Error(err)
 	}
 
-	if r, err := writer.Write(inBytes[:70225]); err != nil || r != len(inBytes) {
+	if r, err := writer.Write(inBytes[:70225]); err != nil || r != 70225 {
 		t.Errorf("Problem when writing to cryptgh writer, r=%d, err=%v", r, err)
 	}
 
