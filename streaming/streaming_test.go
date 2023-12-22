@@ -285,35 +285,35 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	}
 	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(sshEd25519SecEnc), []byte("123123"))
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Reading private key failed with %v", err)
 	}
 	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Reading public key failed with %v", err)
 	}
 	buffer := bytes.Buffer{}
 	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
 	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
 	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Creating writer failed with %v", err)
 	}
 	_, err = io.Copy(writer, inFile)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Copying infile to writer failed with %v", err)
 	}
 	err = inFile.Close()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Closing infile failed with %v", err)
 	}
 	err = writer.Close()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Closing writer failed with %v", err)
 	}
 
 	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Reading private key failed with %v", err)
 	}
 	dataEditListHeaderPacket := headers.DataEditListHeaderPacket{
 		PacketType:    headers.PacketType{PacketType: headers.DataEditList},
@@ -322,54 +322,55 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	}
 	reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, &dataEditListHeaderPacket)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Creating reader failed with %v", err)
 	}
 	discarded, err := reader.Discard(toDiscard)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Discarding failed with %v", err)
 	}
 	if discarded != toDiscard {
-		t.Fail()
+		t.Errorf("Discarded return doesn't match was asked for %v != %v", discarded, toDiscard)
 	}
 
 	all, err := io.ReadAll(reader)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Reading all from reader failed with %v", err)
 	}
 	inFile, err = os.Open("../test/sample.txt")
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Opening test sample failed with %v", err)
 	}
 	bufioReader := bufio.NewReader(inFile)
 	_, err = bufioReader.Discard(950 + toDiscard)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Discarding failed with %v", err)
 	}
 	firstLine, _, err := bufioReader.ReadLine()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("First Readline failed with %v", err)
 	}
 	_, _, err = bufioReader.ReadLine()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("First Skipped Readline failed with %v", err)
 	}
 	_, _, err = bufioReader.ReadLine()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Second Skipped Readline failed with %v", err)
 	}
 	_, _, err = bufioReader.ReadLine()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Third Skipped Readline failed with %v", err)
 	}
 	secondLine, _, err := bufioReader.ReadLine()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Second used Readline failed with %v", err)
 	}
 	expectedText := strings.TrimSpace(string(firstLine) + "\n" + string(secondLine))
 	actualText := strings.TrimSpace(string(all))
 
 	if !strings.EqualFold(expectedText, actualText) {
-		t.Fail()
+		t.Errorf("Texts didn't match: %v, %v", expectedText, actualText)
+
 	}
 }
 
