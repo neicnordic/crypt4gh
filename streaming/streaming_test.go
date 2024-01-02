@@ -285,6 +285,128 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	}
 	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(sshEd25519SecEnc), []byte("123123"))
 	if err != nil {
+		t.Errorf("Reading private key failed with %v", err)
+	}
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
+	if err != nil {
+		t.Errorf("Reading public key failed with %v", err)
+	}
+	buffer := bytes.Buffer{}
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+	writer, err := NewCrypt4GHWriter(&buffer, writerPrivateKey, readerPublicKeyList, nil)
+	if err != nil {
+		t.Errorf("Creating writer failed with %v", err)
+	}
+	_, err = io.Copy(writer, inFile)
+	if err != nil {
+		t.Errorf("Copying infile to writer failed with %v", err)
+	}
+	err = inFile.Close()
+	if err != nil {
+		t.Errorf("Closing infile failed with %v", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		t.Errorf("Closing writer failed with %v", err)
+	}
+
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Errorf("Reading private key failed with %v", err)
+	}
+	dataEditListHeaderPacket := headers.DataEditListHeaderPacket{
+		PacketType:    headers.PacketType{PacketType: headers.DataEditList},
+		NumberLengths: 4,
+		Lengths:       []uint64{950, 837, 510, 847},
+	}
+	reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Errorf("Creating reader failed with %v", err)
+	}
+	discarded, err := reader.Discard(toDiscard)
+	if err != nil {
+		t.Errorf("Discarding failed with %v", err)
+	}
+	if discarded != toDiscard {
+		t.Errorf("Discarded return doesn't match was asked for %v != %v", discarded, toDiscard)
+	}
+
+	all, err := io.ReadAll(reader)
+	if err != nil {
+		t.Errorf("Reading all from reader failed with %v", err)
+	}
+	inFile, err = os.Open("../test/sample.txt")
+	if err != nil {
+		t.Errorf("Opening test sample failed with %v", err)
+	}
+	bufioReader := bufio.NewReader(inFile)
+	_, err = bufioReader.Discard(950 + toDiscard)
+	if err != nil {
+		t.Errorf("Discarding failed with %v", err)
+	}
+	firstLine, _, err := bufioReader.ReadLine()
+	if err != nil {
+		t.Errorf("First Readline failed with %v", err)
+	}
+	_, _, err = bufioReader.ReadLine()
+	if err != nil {
+		t.Errorf("First Skipped Readline failed with %v", err)
+	}
+	_, _, err = bufioReader.ReadLine()
+	if err != nil {
+		t.Errorf("Second Skipped Readline failed with %v", err)
+	}
+	_, _, err = bufioReader.ReadLine()
+	if err != nil {
+		t.Errorf("Third Skipped Readline failed with %v", err)
+	}
+	secondLine, _, err := bufioReader.ReadLine()
+	if err != nil {
+		t.Errorf("Second used Readline failed with %v", err)
+	}
+	expectedText := strings.TrimSpace(string(firstLine) + "\n" + string(secondLine))
+	actualText := strings.TrimSpace(string(all))
+
+	if !strings.EqualFold(expectedText, actualText) {
+		t.Errorf("Texts didn't match: %v, %v", expectedText, actualText)
+
+	}
+}
+
+func TestGetHeader(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt.enc")
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	reader, err := NewCrypt4GHReader(inFile, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	header := hex.EncodeToString(reader.GetHeader())
+	if header != "637279707434676801000000010000006c000000000000005ee4b32a4b0fb53dc04dcb02aea9d258afd07736e13522ccaaf4077e643c8d1b9ed06c98c3183938aec96dd7b39258b80c4291ef23d4f16a4a35f52f95a25d7b6121d9646c94994c7cacfe3c98d4cb8122213b2475909fdc1e16f322e57095129cd87a6a" {
+		t.Error()
+	}
+	readByte, err := reader.ReadByte()
+	if err != nil {
+		t.Error(err)
+	}
+	if rune(readByte) != 'L' {
+		t.Error()
+	}
+}
+
+func TestReencryptionWithDataEditListInCrypt4GHReaderDiscardStart(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(sshEd25519SecEnc), []byte("123123"))
+	if err != nil {
 		t.Error(err)
 	}
 	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
@@ -317,21 +439,13 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	}
 	dataEditListHeaderPacket := headers.DataEditListHeaderPacket{
 		PacketType:    headers.PacketType{PacketType: headers.DataEditList},
-		NumberLengths: 4,
-		Lengths:       []uint64{950, 837, 510, 847},
+		NumberLengths: 3,
+		Lengths:       []uint64{0, 100, 300},
 	}
 	reader, err := NewCrypt4GHReader(&buffer, readerSecretKey, &dataEditListHeaderPacket)
 	if err != nil {
 		t.Error(err)
 	}
-	discarded, err := reader.Discard(toDiscard)
-	if err != nil {
-		t.Error(err)
-	}
-	if discarded != toDiscard {
-		t.Fail()
-	}
-
 	all, err := io.ReadAll(reader)
 	if err != nil {
 		t.Error(err)
@@ -340,62 +454,15 @@ func TestReencryptionWithDataEditListAndDiscard(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bufioReader := bufio.NewReader(inFile)
-	_, err = bufioReader.Discard(950 + toDiscard)
+	inBytes, err := io.ReadAll(inFile)
 	if err != nil {
 		t.Error(err)
 	}
-	firstLine, _, err := bufioReader.ReadLine()
-	if err != nil {
-		t.Error(err)
+	if !bytes.Equal(all[:100], inBytes[:100]) {
+		t.Errorf("Different data before discard: %v vs %v", all[:100], inBytes[:100])
 	}
-	_, _, err = bufioReader.ReadLine()
-	if err != nil {
-		t.Error(err)
-	}
-	_, _, err = bufioReader.ReadLine()
-	if err != nil {
-		t.Error(err)
-	}
-	_, _, err = bufioReader.ReadLine()
-	if err != nil {
-		t.Error(err)
-	}
-	secondLine, _, err := bufioReader.ReadLine()
-	if err != nil {
-		t.Error(err)
-	}
-	expectedText := strings.TrimSpace(string(firstLine) + "\n" + string(secondLine))
-	actualText := strings.TrimSpace(string(all))
-
-	if !strings.EqualFold(expectedText, actualText) {
-		t.Fail()
-	}
-}
-
-func TestGetHeader(t *testing.T) {
-	inFile, err := os.Open("../test/sample.txt.enc")
-	if err != nil {
-		t.Error(err)
-	}
-	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
-	if err != nil {
-		t.Error(err)
-	}
-	reader, err := NewCrypt4GHReader(inFile, readerSecretKey, nil)
-	if err != nil {
-		t.Error(err)
-	}
-	header := hex.EncodeToString(reader.GetHeader())
-	if header != "637279707434676801000000010000006c000000000000005ee4b32a4b0fb53dc04dcb02aea9d258afd07736e13522ccaaf4077e643c8d1b9ed06c98c3183938aec96dd7b39258b80c4291ef23d4f16a4a35f52f95a25d7b6121d9646c94994c7cacfe3c98d4cb8122213b2475909fdc1e16f322e57095129cd87a6a" {
-		t.Error()
-	}
-	readByte, err := reader.ReadByte()
-	if err != nil {
-		t.Error(err)
-	}
-	if rune(readByte) != 'L' {
-		t.Error()
+	if !bytes.Equal(all[100:], inBytes[400:]) {
+		t.Errorf("Different data after discard: %v vs %v (truncated)", all[400:500], inBytes[100:200])
 	}
 }
 
@@ -856,7 +923,7 @@ func TestSeek(t *testing.T) {
 		t.Error(err)
 	}
 
-	if r, err := writer.Write(inBytes[:70225]); err != nil || r != len(inBytes) {
+	if r, err := writer.Write(inBytes[:70225]); err != nil || r != 70225 {
 		t.Errorf("Problem when writing to cryptgh writer, r=%d, err=%v", r, err)
 	}
 

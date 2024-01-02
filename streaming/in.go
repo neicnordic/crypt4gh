@@ -264,7 +264,7 @@ func (c *crypt4GHInternalReader) read(p []byte) (n int, err error) {
 		}
 
 		canRead := len(p[haveRead:])
-		remainingInBuffer := c.bufferUse - c.buffer.Len()
+		remainingInBuffer := c.buffer.Len()
 
 		if remainingInBuffer < canRead {
 			canRead = remainingInBuffer
@@ -297,9 +297,11 @@ func (c *crypt4GHInternalReader) read(p []byte) (n int, err error) {
 				haveRead++
 			}
 		} else {
-			// We can just read the rest of the buffer
+			// Read larger chunk from buffer. As precaution, limit to what we
+			// should be able to read only, as that is the bit we've checked
+			// if the discard list imposes any holes in
 
-			r, err := c.buffer.Read(p[haveRead:])
+			r, err := c.buffer.Read(p[haveRead : haveRead+canRead])
 			haveRead += r
 			c.streamPos += int64(r)
 
