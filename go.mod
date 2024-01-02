@@ -13,3 +13,7 @@ require (
 )
 
 require golang.org/x/sys v0.15.0 // indirect
+
+retract (
+    v1.8.7 // has a bug related to file decryption that ends up in loop.
+)
