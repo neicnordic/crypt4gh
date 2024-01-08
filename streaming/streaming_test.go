@@ -43,6 +43,41 @@ YzRnaC12MQAGc2NyeXB0ABQAAAAA2l23+H3w2F3/Zylx5Gs2CwARY2hhY2hhMjBfcG9seTEzMDUAPOdx
 -----END CRYPT4GH PRIVATE KEY-----
 `
 
+func TestDecrypt(t *testing.T) {
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	inFile, err := os.Open("../test/sample.txt.enc")
+	if err != nil {
+		t.Error(err)
+	}
+
+	reader, err := NewCrypt4GHReader(inFile, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	decBytes, err := io.ReadAll(reader)
+	if err != nil {
+		t.Error(err)
+	}
+
+	refFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	refBytes, err := io.ReadAll(refFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !bytes.Equal(decBytes, refBytes) {
+		t.Fail()
+	}
+}
+
 func TestReencryption(t *testing.T) {
 	tests := []struct {
 		name    string
