@@ -1050,3 +1050,115 @@ func TestSmallBuffer(t *testing.T) {
 	}
 
 }
+
+func TestSomeEOFs(t *testing.T) {
+
+	inFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
+	if err != nil {
+		t.Error(err)
+	}
+	buffer := bytes.Buffer{}
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+
+	writer, err := NewCrypt4GHWriterWithoutPrivateKey(&buffer, readerPublicKeyList, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if _, err = io.CopyN(writer, inFile, 70225); err != nil {
+		t.Error(err)
+	}
+
+	if err = inFile.Close(); err != nil {
+		t.Error(err)
+	}
+
+	if err = writer.Close(); err != nil {
+		t.Error(err)
+	}
+
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	bufferReader := bytes.NewReader(buffer.Bytes())
+	reader, err := NewCrypt4GHReader(bufferReader, readerSecretKey, nil)
+	if err != nil {
+		t.Errorf("Opening reader gave error %v", err)
+	}
+
+	buf := make([]byte, 80000)
+
+	r, err := reader.Read(buf)
+	if err != io.EOF || r != 70225 {
+		t.Errorf("Didn't see expected error (%v != io.EOF) or size (%v != 70225)", err, r)
+	}
+
+	r, err = reader.Read(buf)
+	if err != io.EOF || r != 0 {
+		t.Errorf("Didn't see expected error after EOF (%v != io.EOF) or size (%v != 0)", err, r)
+	}
+
+	_, err = reader.ReadByte()
+	if err != io.EOF {
+		t.Errorf("Didn't see expected error from ReadByte after EOF (%v != io.EOF)", err)
+	}
+
+	inFile, err = os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+
+	buffer = bytes.Buffer{}
+
+	writer, err = NewCrypt4GHWriterWithoutPrivateKey(&buffer, readerPublicKeyList, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if _, err = io.Copy(writer, inFile); err != nil {
+		t.Error(err)
+	}
+
+	if err = inFile.Close(); err != nil {
+		t.Error(err)
+	}
+
+	if err = writer.Close(); err != nil {
+		t.Error(err)
+	}
+
+	bufferReader = bytes.NewReader(buffer.Bytes())
+	dataEditListHeaderPacket := headers.DataEditListHeaderPacket{
+		PacketType:    headers.PacketType{PacketType: headers.DataEditList},
+		NumberLengths: 2,
+		Lengths:       []uint64{10, 20},
+	}
+
+	reader, err = NewCrypt4GHReader(bufferReader, readerSecretKey, &dataEditListHeaderPacket)
+	if err != nil {
+		t.Errorf("Opening reader gave error %v", err)
+	}
+
+	r, err = reader.Read(buf)
+	if err != io.EOF || r != 20 {
+		t.Errorf("Didn't see expected error (%v != io.EOF) or size (%v != 20)", err, r)
+	}
+
+	r, err = reader.Read(buf)
+	if err != io.EOF || r != 0 {
+		t.Errorf("Didn't see expected error after EOF (%v != io.EOF) or size (%v != 0)", err, r)
+	}
+
+	_, err = reader.ReadByte()
+	if err != io.EOF {
+		t.Errorf("Didn't see expected error from ReadByte after EOF (%v != io.EOF)", err)
+	}
+
+}

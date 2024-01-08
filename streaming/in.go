@@ -156,6 +156,13 @@ func (c *crypt4GHInternalReader) ensureBuffer() (err error) {
 		_ = c.buffer.Next(toSkip)
 	}
 
+	if c.buffer.Len() == 0 {
+		// If we have already read everything, signal so (we might see fillBuffer
+		// succeeding to put content in but us having already seen everything in
+		// the buffer)
+		return io.EOF
+	}
+
 	return nil
 }
 
