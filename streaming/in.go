@@ -270,6 +270,7 @@ func (c *crypt4GHInternalReader) read(p []byte) (n int, err error) {
 			canRead = remainingInBuffer
 		}
 
+		// Check if there are any holes (skips) within what we'll read
 		start, err := c.consumerOffsetToEncryptedStreamOffset(c.streamPos)
 		if err != nil {
 			return haveRead, err
