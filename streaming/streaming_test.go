@@ -43,6 +43,41 @@ YzRnaC12MQAGc2NyeXB0ABQAAAAA2l23+H3w2F3/Zylx5Gs2CwARY2hhY2hhMjBfcG9seTEzMDUAPOdx
 -----END CRYPT4GH PRIVATE KEY-----
 `
 
+func TestDecrypt(t *testing.T) {
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	inFile, err := os.Open("../test/sample.txt.enc")
+	if err != nil {
+		t.Error(err)
+	}
+
+	reader, err := NewCrypt4GHReader(inFile, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	decBytes, err := io.ReadAll(reader)
+	if err != nil {
+		t.Error(err)
+	}
+
+	refFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	refBytes, err := io.ReadAll(refFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !bytes.Equal(decBytes, refBytes) {
+		t.Fail()
+	}
+}
+
 func TestReencryption(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -388,8 +423,8 @@ func TestGetHeader(t *testing.T) {
 		t.Error(err)
 	}
 	header := hex.EncodeToString(reader.GetHeader())
-	if header != "637279707434676801000000010000006c000000000000005ee4b32a4b0fb53dc04dcb02aea9d258afd07736e13522ccaaf4077e643c8d1b9ed06c98c3183938aec96dd7b39258b80c4291ef23d4f16a4a35f52f95a25d7b6121d9646c94994c7cacfe3c98d4cb8122213b2475909fdc1e16f322e57095129cd87a6a" {
-		t.Error()
+	if header != "637279707434676801000000010000006c00000000000000fcb2dcc7f1a915f30378b83de132bcaff3dba5ae68ac4c1b7fdaeb2c6ce9ca22aeb9f2121fce004f7d9069496804a55b9b376587000b921b33b18f8edad2db3b0c9f6bbd793be69592720710def70ca27451f4aa51d5ae7510c61f634a8d397f0de65630" {
+		t.Error(header)
 	}
 	readByte, err := reader.ReadByte()
 	if err != nil {
