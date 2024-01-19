@@ -358,6 +358,7 @@ func (c *crypt4GHInternalReader) fillBuffer() error {
 					canRead = skip
 				}
 				read, err := c.reader.Read(encryptedSegmentBytes[:canRead])
+				c.sourcePos += int64(read)
 
 				if err != nil {
 					// Since we're trying to skip forward to our desired block

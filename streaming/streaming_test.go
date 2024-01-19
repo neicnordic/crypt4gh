@@ -810,6 +810,74 @@ func TestClose(t *testing.T) {
 
 }
 
+func TestLargeSeek(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Error(err)
+	}
+
+	inBytes, err := io.ReadAll(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err = inFile.Close(); err != nil {
+		t.Error(err)
+	}
+
+	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
+	if err != nil {
+		t.Error(err)
+	}
+	buffer := bytes.Buffer{}
+
+	readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+
+	writer, err := NewCrypt4GHWriterWithoutPrivateKey(&buffer, readerPublicKeyList, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; i < 32; i++ {
+		if r, err := writer.Write(inBytes[:20000]); err != nil || r != 20000 {
+			t.Errorf("Problem when writing to cryptgh writer, r=%d, err=%v", r, err)
+		}
+	}
+
+	err = writer.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	bufferReader := bytes.NewReader(buffer.Bytes())
+	unseekableReader := io.MultiReader(bufferReader)
+
+	reader, err := NewCrypt4GHReader(unseekableReader, readerSecretKey, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	offset, err := reader.Seek(130000, 0)
+	if err != nil {
+		t.Errorf("Seeking failed, returned offset=%v, err=%v", offset, err)
+	}
+
+	buf := make([]byte, 4096)
+	r, err := reader.Read(buf)
+	if err != nil || r != len(buf) {
+		t.Errorf("Read returned unexpected r=%v, err=%v", r, err)
+	}
+
+	if !bytes.Equal(buf, inBytes[10000:14096]) {
+		t.Errorf("Content mismatch when passing segment boundary")
+	}
+}
+
 func TestSeek(t *testing.T) {
 	inFile, err := os.Open("../test/sample.txt")
 	if err != nil {
