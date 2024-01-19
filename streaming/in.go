@@ -358,6 +358,7 @@ func (c *crypt4GHInternalReader) fillBuffer() error {
 					canRead = skip
 				}
 				read, err := c.reader.Read(encryptedSegmentBytes[:canRead])
+				c.sourcePos += int64(read)
 
 				if err != nil {
 					// Since we're trying to skip forward to our desired block
@@ -372,6 +373,8 @@ func (c *crypt4GHInternalReader) fillBuffer() error {
 	// reader should be positioned before the needed segment now
 
 	read, err := io.ReadFull(c.reader, encryptedSegmentBytes)
+	c.sourcePos += int64(read)
+
 	if err != nil && err != io.ErrUnexpectedEOF {
 		return err
 	}
@@ -390,7 +393,6 @@ func (c *crypt4GHInternalReader) fillBuffer() error {
 		return err
 	}
 	c.lastDecryptedSegment = neededSegment
-	c.sourcePos += int64(read)
 
 	// Keep track of how much data is directly available
 
