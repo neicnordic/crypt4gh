@@ -47,6 +47,7 @@ func readerToReader(seekable bool, source io.Reader) io.Reader {
 	if seekable {
 		return source
 	}
+
 	return io.MultiReader(source)
 }
 
@@ -1012,6 +1013,7 @@ func TestSeek(t *testing.T) {
 		}
 
 		r, err = reader.Seek(10, 0)
+		// nolint:nestif
 		if !seekable {
 			// Not going backwards is fine when not seekable, check for error
 
