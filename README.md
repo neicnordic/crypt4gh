@@ -19,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/neicnordic/crypt4gh/master/install.
 
 ### MacOS
 ```
-curl -fsSL https://raw.githubusercontent.com/neicnordic/crypt4gh/master/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/neicnordic/crypt4gh/master/install.sh | sudo sh
 ```
 
 ### Windows
