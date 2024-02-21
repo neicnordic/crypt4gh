@@ -53,6 +53,7 @@ crypt4gh [generate | encrypt | decrypt | reencrypt] <args>
  Environment variables:
 
  C4GH_SECRET_KEY	If defined, it will be used as the secret key file if parameter not set parameter not set
+ C4GH_PASSPHRASE	If defined it will be used as the default password for decoding the secret key
 ```
 
 ### Examples

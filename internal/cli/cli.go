@@ -80,11 +80,18 @@ func readPrivateKey(fileName string) (privateKey [chacha20poly1305.KeySize]byte,
 		return
 	}
 	privateKey, err = keys.ReadPrivateKey(secretKeyFile, nil)
+	// nolint:nestif
 	if err != nil {
 		var password string
-		password, err = passwordPrompt("Enter the passphrase to unlock the key:")
-		if err != nil {
-			return
+		password, isPasswordSet := os.LookupEnv("C4GH_PASSPHRASE")
+
+		if !isPasswordSet {
+			password, err = passwordPrompt("Enter the passphrase to unlock the key:")
+			if err != nil {
+				return
+			}
+		} else {
+			fmt.Println(aurora.Yellow("Warning: Using a passphrase in an environment variable is considered insecure."))
 		}
 		err = secretKeyFile.Close()
 		if err != nil {
@@ -93,7 +100,7 @@ func readPrivateKey(fileName string) (privateKey [chacha20poly1305.KeySize]byte,
 		secretKeyFile, _ = os.Open(fileName)
 		privateKey, err = keys.ReadPrivateKey(secretKeyFile, []byte(password))
 		if err != nil {
-			return privateKey, errors.New("Bad passphrase")
+			return privateKey, errors.New("bad passphrase")
 		}
 		err = secretKeyFile.Close()
 		if err != nil {
@@ -193,8 +200,9 @@ func GenerateHelpMessage() string {
 	reencryptUsage = strings.Replace(reencryptUsage, applicationOptions, " "+reencrypt, 1)
 
 	env := "\n Environment variables:\n\n C4GH_SECRET_KEY\tIf defined, it will be used as the secret key file if parameter not set"
+	c4ghEnv := "\n C4GH_PASSPHRASE\tIf defined it will be used as the default password for decoding the secret key"
 
-	return header + generateUsage + encryptUsage + decryptUsage + reencryptUsage + env
+	return header + generateUsage + encryptUsage + decryptUsage + reencryptUsage + env + c4ghEnv
 }
 
 func GenerateKeys() bool {
@@ -217,7 +225,16 @@ func GenerateKeys() bool {
 			return true
 		}
 	}
-	err = writeKeyPair(generateOptions.Name, publicKey, privateKey, generateOptions.Format, generateOptions.Password)
+	var password string
+	password, isPasswordSet := os.LookupEnv("C4GH_PASSPHRASE")
+
+	if !isPasswordSet {
+		password = generateOptions.Password
+	} else {
+		fmt.Println(aurora.Yellow("Warning: Using a passphrase in an environment variable is considered insecure."))
+	}
+
+	err = writeKeyPair(generateOptions.Name, publicKey, privateKey, generateOptions.Format, password)
 	if err != nil {
 		fmt.Println(aurora.Red(err))
 
