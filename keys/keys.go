@@ -92,31 +92,11 @@ func ReadPrivateKey(reader io.Reader, passPhrase []byte) (privateKey [chacha20po
 		return
 	}
 
-	// Not OpenSSH private key, assuming OpenSSL private key, trying to figure out type (Ed25519 or X25519)
 	block, _ := pem.Decode(allBytes)
 
 	if block == nil {
-		return [chacha20poly1305.KeySize]byte{}, fmt.Errorf("Read of unrecognized private key format failed; " +
+		return [chacha20poly1305.KeySize]byte{}, fmt.Errorf("read of unrecognized private key format failed; " +
 			"expected PEM encoded key")
-	}
-
-	var openSSLPrivateKey openSSLPrivateKey
-	if _, err = asn1.Unmarshal(block.Bytes, &openSSLPrivateKey); err == nil {
-		// Trying to read OpenSSL Ed25519 private key and convert to X25519 private key
-		if openSSLPrivateKey.Algorithm.Algorithm.Equal(ed25519Algorithm) {
-			var edKeyBytes ed25519.PrivateKey
-			copy(edKeyBytes[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
-			PrivateKeyToCurve25519(&privateKey, edKeyBytes)
-
-			return
-		}
-
-		// Trying to read OpenSSL X25519 private key
-		if openSSLPrivateKey.Algorithm.Algorithm.Equal(x25519Algorithm) {
-			copy(privateKey[:], block.Bytes[len(block.Bytes)-chacha20poly1305.KeySize:])
-
-			return
-		}
 	}
 
 	// Interpreting bytes as Crypt4GH private key bytes (https://crypt4gh.readthedocs.io/en/latest/keys.html)
