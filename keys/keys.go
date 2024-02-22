@@ -121,28 +121,58 @@ func readCrypt4GHPrivateKey(pemBytes, passPhrase []byte) (privateKey [chacha20po
 	}
 	var rounds uint32
 	var salt []byte
-	kdfunction, ok := kdf.KDFS[string(kdfName)]
-	if !ok {
-		return privateKey, fmt.Errorf("KDF %v not supported", string(kdfName))
-	}
-	if string(kdfName) != "none" {
-		if passPhrase == nil {
-			return privateKey, errors.New("private key is password-protected, need a password for decryption")
-		}
+
+	if string(kdfName) == none {
+		// Unencrypted private key
+
 		err = binary.Read(buffer, binary.BigEndian, &length)
 		if err != nil {
 			return
 		}
-		err = binary.Read(buffer, binary.BigEndian, &rounds)
+		ciphername := make([]byte, length)
+		err = binary.Read(buffer, binary.BigEndian, &ciphername)
 		if err != nil {
 			return
 		}
-		salt = make([]byte, length-4)
-		err = binary.Read(buffer, binary.BigEndian, &salt)
+
+		if string(ciphername) != none {
+			return privateKey, errors.New("invalid private key: KDF is 'none', but cipher is not 'none'")
+		}
+
+		err = binary.Read(buffer, binary.BigEndian, &length)
 		if err != nil {
 			return
 		}
+		payload := make([]byte, length)
+		err = binary.Read(buffer, binary.BigEndian, &payload)
+
+		copy(privateKey[:], payload)
+
+		return
 	}
+	if passPhrase == nil {
+		return privateKey, errors.New("private key is password-protected, need a password for decryption")
+	}
+
+	kdfunction, ok := kdf.KDFS[string(kdfName)]
+	if !ok {
+		return privateKey, fmt.Errorf("KDF %v not supported", string(kdfName))
+	}
+
+	err = binary.Read(buffer, binary.BigEndian, &length)
+	if err != nil {
+		return
+	}
+	err = binary.Read(buffer, binary.BigEndian, &rounds)
+	if err != nil {
+		return
+	}
+	salt = make([]byte, length-4)
+	err = binary.Read(buffer, binary.BigEndian, &salt)
+	if err != nil {
+		return
+	}
+
 	err = binary.Read(buffer, binary.BigEndian, &length)
 	if err != nil {
 		return
@@ -159,14 +189,6 @@ func readCrypt4GHPrivateKey(pemBytes, passPhrase []byte) (privateKey [chacha20po
 	payload := make([]byte, length)
 	err = binary.Read(buffer, binary.BigEndian, &payload)
 	if err != nil {
-		return
-	}
-	if string(kdfName) == none {
-		if string(ciphername) != none {
-			return privateKey, errors.New("invalid private key: KDF is 'none', but cipher is not 'none'")
-		}
-		copy(privateKey[:], payload)
-
 		return
 	}
 	if string(ciphername) != supportedCipherName {
