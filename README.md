@@ -12,12 +12,7 @@ Current version of specs can be found [here](http://samtools.github.io/hts-specs
 
 ## Installation
 
-### Linux
-```
-curl -fsSL https://raw.githubusercontent.com/neicnordic/crypt4gh/master/install.sh | sudo sh
-```
-
-### MacOS
+### Linux / MacOS
 ```
 curl -fsSL https://raw.githubusercontent.com/neicnordic/crypt4gh/master/install.sh | sudo sh
 ```
@@ -57,6 +52,8 @@ crypt4gh [generate | encrypt | decrypt | reencrypt] <args>
 ```
 
 ### Examples
+
+Examples on how to make use of the crypt4gh library are in the [examples](examples/) folder
 
 #### Generate Keys
 ```
