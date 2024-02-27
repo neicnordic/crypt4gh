@@ -46,6 +46,11 @@ ECAwQ=
 -----END OPENSSH PRIVATE KEY-----
 `
 
+const unencryptedCrypt4GH = `-----BEGIN CRYPT4GH PRIVATE KEY-----
+YzRnaC12MQAEbm9uZQAEbm9uZQAgCvMeraG2L8NC9rDji46RXESWcXkoV5JeF0IiJdvzyhQ=
+-----END CRYPT4GH PRIVATE KEY-----
+`
+
 const sshEd25519Pub = `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGShUtbgxD70Gj+alwupjPHpTeIHf/s7pWNfx10VvYHV dmytrot@Dmytros-MacBook-Pro.local
 `
 
@@ -100,6 +105,14 @@ func TestReadKey(t *testing.T) {
 		passPhrase             []byte
 		hash                   string
 	}{
+		{
+			name:                   "unencrypted.sec.pem",
+			content:                unencryptedCrypt4GH,
+			readPrivateKeyFunction: ReadPrivateKey,
+			readPublicKeyFunction:  nil,
+			passPhrase:             nil,
+			hash:                   "0af31eada1b62fc342f6b0e38b8e915c449671792857925e17422225dbf3ca14",
+		},
 		{
 			name:                   "crypt4gh-x25519-enc.sec.pem",
 			content:                crypt4ghX25519Sec,

@@ -43,6 +43,16 @@ YzRnaC12MQAGc2NyeXB0ABQAAAAA2l23+H3w2F3/Zylx5Gs2CwARY2hhY2hhMjBfcG9seTEzMDUAPOdx
 -----END CRYPT4GH PRIVATE KEY-----
 `
 
+const unencryptedSec = `-----BEGIN CRYPT4GH PRIVATE KEY-----
+YzRnaC12MQAEbm9uZQAEbm9uZQAgmWET98yM/kaM27VkZGRktSR1q/htHspqBlzEL0FRD3g=
+-----END CRYPT4GH PRIVATE KEY-----
+`
+
+const unencryptedPub = `-----BEGIN CRYPT4GH PUBLIC KEY-----
+4AOAKwiwvkjF6Wvoh9Aw5gUKjoOoRcA5svJadKzEDhM=
+-----END CRYPT4GH PUBLIC KEY-----
+`
+
 func readerToReader(seekable bool, source io.Reader) io.Reader {
 	if seekable {
 		return source
@@ -1322,6 +1332,68 @@ func TestSomeEOFs(t *testing.T) {
 		_, err = reader.ReadByte()
 		if err != io.EOF {
 			t.Errorf("Didn't see expected error from ReadByte after EOF (%v != io.EOF)", err)
+		}
+	}
+}
+
+func TestUnencryptedPrivate(t *testing.T) {
+	for _, seekable := range []bool{true, false} {
+		inFile, err := os.Open("../test/sample.txt")
+		if err != nil {
+			t.Error(err)
+		}
+
+		inBytes, err := io.ReadAll(inFile)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if err = inFile.Close(); err != nil {
+			t.Error(err)
+		}
+
+		readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(unencryptedPub))
+		if err != nil {
+			t.Error(err)
+		}
+		buffer := bytes.Buffer{}
+
+		readerPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+		readerPublicKeyList = append(readerPublicKeyList, readerPublicKey)
+
+		writer, err := NewCrypt4GHWriterWithoutPrivateKey(&buffer, readerPublicKeyList, nil)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if r, err := writer.Write(inBytes[:20000]); err != nil || r != 20000 {
+			t.Errorf("Problem when writing to cryptgh writer, r=%d, err=%v", r, err)
+		}
+
+		err = writer.Close()
+		if err != nil {
+			t.Error(err)
+		}
+		readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(unencryptedSec), nil)
+		if err != nil {
+			t.Error(err)
+		}
+
+		bufferReader := bytes.NewReader(buffer.Bytes())
+
+		reader, err := NewCrypt4GHReader(readerToReader(seekable, bufferReader), readerSecretKey, nil)
+		if err != nil {
+			t.Error(err)
+		}
+
+		buf := make([]byte, 16384)
+		r, err := reader.Read(buf)
+		if err != nil || r != len(buf) {
+			t.Errorf("Read returned unexpected r=%v, err=%v", r, err)
+		}
+
+		if !bytes.Equal(buf, inBytes[:16384]) {
+			t.Errorf("Content mismatch when passing segment boundary")
 		}
 	}
 }
