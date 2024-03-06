@@ -262,6 +262,29 @@ func NewHeaderPacket(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySiz
 	return &headerPacket, nil
 }
 
+// EncryptedSegmentSize returns the size of an encrypted segment for a given header and reader private key.
+func EncryptedSegmentSize(header []byte, readerPrivateKey [chacha20poly1305.KeySize]byte) (int, error) {
+
+	buffer := bytes.NewBuffer(header)
+	decryptedHeader, err := NewHeader(buffer, readerPrivateKey)
+	if err != nil {
+		return 0, err
+	}
+
+	dataEncryptionParametersHeaderPackets, err := decryptedHeader.GetDataEncryptionParameterHeaderPackets()
+	if err != nil {
+		return 0, err
+	}
+
+	firstDataEncryptionParametersHeader := (*dataEncryptionParametersHeaderPackets)[0]
+	for _, dataEncryptionParametersHeader := range *dataEncryptionParametersHeaderPackets {
+		if dataEncryptionParametersHeader.GetPacketType() != firstDataEncryptionParametersHeader.GetPacketType() {
+			return 0, fmt.Errorf("different data encryption methods are not supported")
+		}
+	}
+	return firstDataEncryptionParametersHeader.EncryptedSegmentSize, nil
+}
+
 // MarshalBinary implements method MarshalBinary.BinaryMarshaler.
 func (hp *HeaderPacket) MarshalBinary() (data []byte, err error) {
 	var encryptedMarshalledEncryptedHeaderPacket []byte
