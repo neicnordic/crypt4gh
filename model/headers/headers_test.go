@@ -315,6 +315,9 @@ func TestReEncryptedHeaderReplacementAndAddition(t *testing.T) {
 	// Test DEL copying when reencryption, i.e. when the DEL is not replaced. Encrypt back for the original recipient
 
 	newRecipientSecretKey, err := keys.ReadPrivateKey(strings.NewReader(newRecipientSec), []byte("password"))
+	if err != nil {
+		t.Errorf("Failed creating new recipient secret key: %v", err)
+	}
 
 	newerReaderPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
 	if err != nil {

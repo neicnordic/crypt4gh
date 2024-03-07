@@ -1422,7 +1422,7 @@ func TestReEncryptedHeaderReplacementAndAdditionFileRead(t *testing.T) {
 	newReaderPublicKeyList = append(newReaderPublicKeyList, newReaderPublicKey)
 
 	// create a new data edit list, pass over a segment boundary for sports
-	del := headers.DataEditListHeaderPacket{PacketType: headers.PacketType{headers.DataEditList}, NumberLengths: 2, Lengths: []uint64{65500, 100}}
+	del := headers.DataEditListHeaderPacket{PacketType: headers.PacketType{PacketType: headers.DataEditList}, NumberLengths: 2, Lengths: []uint64{65500, 100}}
 
 	newHeader, err := headers.ReEncryptHeader(oldHeader, readerSecretKey, newReaderPublicKeyList, del)
 	if err != nil {
@@ -1445,6 +1445,9 @@ func TestReEncryptedHeaderReplacementAndAdditionFileRead(t *testing.T) {
 
 	newFile := io.MultiReader(buffer, inFile)
 	c4ghReader, err := NewCrypt4GHReader(newFile, newReaderSecretKey, nil)
+	if err != nil {
+		t.Errorf("Opening of reencrypted stream failed: %v", err)
+	}
 
 	readBackWithDel := make([]byte, 100000)
 	delRead, err := c4ghReader.Read(readBackWithDel)
@@ -1463,7 +1466,11 @@ func TestReEncryptedHeaderReplacementAndAdditionFileRead(t *testing.T) {
 		t.Errorf("Opening of unencrypted source file failed: %v", err)
 	}
 
-	sourceFile.Seek(65500, 0)
+	pos, err := sourceFile.Seek(65500, 0)
+	if err != nil || pos != 65500 {
+		t.Errorf("Seeking in unencrypted source file failed (%v) or returned wrong position (%d vs 65500)", err, pos)
+	}
+
 	sourceBytes := make([]byte, 400)
 	sourceRead, err := sourceFile.Read(sourceBytes)
 	if err != nil || sourceRead != 400 {
