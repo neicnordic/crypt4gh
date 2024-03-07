@@ -282,6 +282,7 @@ func EncryptedSegmentSize(header []byte, readerPrivateKey [chacha20poly1305.KeyS
 			return 0, fmt.Errorf("different data encryption methods are not supported")
 		}
 	}
+
 	return firstDataEncryptionParametersHeader.EncryptedSegmentSize, nil
 }
 

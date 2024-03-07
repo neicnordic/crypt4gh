@@ -322,12 +322,12 @@ func TestEncryptedSegmentSize(t *testing.T) {
 		t.Errorf("EncryptedSegmentSize returned unexpected size %d (expected 65564)", size)
 	}
 
-	size, err = EncryptedSegmentSize(header, ([32]byte)(make([]byte, 32)))
+	_, err = EncryptedSegmentSize(header, ([32]byte)(make([]byte, 32)))
 	if err == nil {
 		t.Errorf("EncryptedSegmentSize worked where it should fail: %v", err)
 	}
 
-	size, err = EncryptedSegmentSize(make([]byte, 2), readerSecretKey)
+	_, err = EncryptedSegmentSize(make([]byte, 2), readerSecretKey)
 	if err == nil {
 		t.Errorf("EncryptedSegmentSize worked where it should fail: %v", err)
 	}
