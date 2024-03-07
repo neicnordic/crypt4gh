@@ -508,8 +508,9 @@ func (delhp DataEditListHeaderPacket) MarshalBinary() (data []byte, err error) {
 }
 
 // ReEncryptHeader takes an old header, decrypts it and using a list of receivers public keys
-// and re-encrypts the header for those keys while keeping the dataEditList packets
-func ReEncryptHeader(oldHeader []byte, readerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKeyList [][chacha20poly1305.KeySize]byte) (newBinaryHeader []byte, err error) {
+// re-encrypts the header for those keys while keeping the dataEditList packets.
+// Optionally adds additional headers, replacing any previous headers of the same type
+func ReEncryptHeader(oldHeader []byte, readerPrivateKey [chacha20poly1305.KeySize]byte, readerPublicKeyList [][chacha20poly1305.KeySize]byte, additionalEncryptedHeaderPackets ...EncryptedHeaderPacket) (newBinaryHeader []byte, err error) {
 
 	buffer := bytes.NewBuffer(oldHeader)
 	decryptedHeader, err := NewHeader(buffer, readerPrivateKey)
@@ -559,6 +560,27 @@ func ReEncryptHeader(oldHeader []byte, readerPrivateKey [chacha20poly1305.KeySiz
 				HeaderEncryptionMethod: X25519ChaCha20IETFPoly1305,
 				EncryptedHeaderPacket:  dataEditList,
 			})
+		}
+
+		for _, packet := range additionalEncryptedHeaderPackets {
+			found := false
+			packetType := packet.GetPacketType()
+
+			for i := range headerPackets {
+				if headerPackets[i].EncryptedHeaderPacket.GetPacketType() == packetType {
+					headerPackets[i].EncryptedHeaderPacket = packet
+					found = true
+				}
+			}
+			if !found {
+				headerPackets = append(headerPackets, HeaderPacket{
+					WriterPrivateKey:       privateKey,
+					ReaderPublicKey:        readerPublicKey,
+					HeaderEncryptionMethod: X25519ChaCha20IETFPoly1305,
+					EncryptedHeaderPacket:  packet,
+				})
+
+			}
 		}
 	}
 

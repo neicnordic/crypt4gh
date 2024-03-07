@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -251,6 +252,101 @@ func TestHeader_GetDataEditListHeaderPacket(t *testing.T) {
 		packet.Lengths[1] != 100 {
 		t.Fail()
 	}
+}
+
+func TestReEncryptedHeaderReplacementAndAddition(t *testing.T) {
+	inFile, err := os.Open("../../test/sample.txt.enc")
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	oldHeader, err := ReadHeader(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	newReaderPublicKey, err := keys.ReadPublicKey(strings.NewReader(newRecipientPub))
+	if err != nil {
+		t.Error(err)
+	}
+	newReaderPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	newReaderPublicKeyList = append(newReaderPublicKeyList, newReaderPublicKey)
+
+	del := DataEditListHeaderPacket{PacketType: PacketType{DataEditList}, NumberLengths: 2, Lengths: []uint64{10, 100}}
+	anotherDel := DataEditListHeaderPacket{PacketType: PacketType{DataEditList}, NumberLengths: 4, Lengths: []uint64{0, 5, 10, 15}}
+
+	newHeader, err := ReEncryptHeader(oldHeader, readerSecretKey, newReaderPublicKeyList, del, anotherDel)
+	if err != nil {
+		panic(err)
+	}
+	t.Logf("Header: %v", newHeader)
+
+	// if the headers are similar then that is not ok
+	if fmt.Sprintf("%v", oldHeader) == fmt.Sprintf("%v", newHeader) {
+		t.Fail()
+	}
+
+	// check the header contents is what we expect
+	newReaderSecretKey, err := keys.ReadPrivateKey(strings.NewReader(newRecipientSec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	buffer := bytes.NewBuffer(newHeader)
+	header, err := NewHeader(buffer, newReaderSecretKey)
+	if err != nil {
+		panic(err)
+	}
+
+	newDel, ok := header.HeaderPackets[1].EncryptedHeaderPacket.(DataEditListHeaderPacket)
+
+	if !ok {
+		t.Logf("Not DEL as expected: %v", header.HeaderPackets[1].EncryptedHeaderPacket)
+		t.Fail()
+	}
+
+	if newDel.NumberLengths != 4 || !reflect.DeepEqual(newDel.Lengths, []uint64{0, 5, 10, 15}) {
+		t.Logf("Unexpected length (%d vs 4) or content in overriden DEL: %v vs {0, 5, 10, 15}", newDel.NumberLengths, newDel.Lengths)
+		t.Fail()
+	}
+
+	// Test DEL copying when reencryption, i.e. when the DEL is not replaced. Encrypt back for the original recipient
+
+	newRecipientSecretKey, err := keys.ReadPrivateKey(strings.NewReader(newRecipientSec), []byte("password"))
+
+	newerReaderPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
+	if err != nil {
+		t.Error(err)
+	}
+
+	newerReaderPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	newerReaderPublicKeyList = append(newerReaderPublicKeyList, newerReaderPublicKey)
+
+	newerHeader, err := ReEncryptHeader(newHeader, newRecipientSecretKey, newerReaderPublicKeyList)
+	if err != nil {
+		t.Errorf("Reencryption back to original recipient failed: %v", err)
+	}
+
+	buffer = bytes.NewBuffer(newerHeader)
+	header, err = NewHeader(buffer, readerSecretKey)
+	if err != nil {
+		panic(err)
+	}
+
+	newDel, ok = header.HeaderPackets[1].EncryptedHeaderPacket.(DataEditListHeaderPacket)
+
+	if !ok {
+		t.Logf("Not DEL as expected: %v", header.HeaderPackets[1].EncryptedHeaderPacket)
+		t.Fail()
+	}
+
+	if newDel.NumberLengths != 4 || !reflect.DeepEqual(newDel.Lengths, []uint64{0, 5, 10, 15}) {
+		t.Logf("Unexpected length (%d vs 4) or content in copied DEL: %v vs {0, 5, 10, 15}", newDel.NumberLengths, newDel.Lengths)
+		t.Fail()
+	}
+
 }
 
 func TestReEncryptedHeader(t *testing.T) {

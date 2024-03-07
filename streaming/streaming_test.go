@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -1396,4 +1397,83 @@ func TestUnencryptedPrivate(t *testing.T) {
 			t.Errorf("Content mismatch when passing segment boundary")
 		}
 	}
+}
+
+// More of a headers test, but avoid cyclic import
+func TestReEncryptedHeaderReplacementAndAdditionFileRead(t *testing.T) {
+	inFile, err := os.Open("../test/sample.txt.enc")
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	oldHeader, err := headers.ReadHeader(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	newReaderPublicKey, err := keys.ReadPublicKey(strings.NewReader(newRecipientPub))
+	if err != nil {
+		t.Error(err)
+	}
+	newReaderPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	newReaderPublicKeyList = append(newReaderPublicKeyList, newReaderPublicKey)
+
+	// create a new data edit list, pass over a segment boundary for sports
+	del := headers.DataEditListHeaderPacket{PacketType: headers.PacketType{headers.DataEditList}, NumberLengths: 2, Lengths: []uint64{65500, 100}}
+
+	newHeader, err := headers.ReEncryptHeader(oldHeader, readerSecretKey, newReaderPublicKeyList, del)
+	if err != nil {
+		panic(err)
+	}
+	t.Logf("Header: %v", newHeader)
+
+	// if the headers are similar then that is not ok
+	if fmt.Sprintf("%v", oldHeader) == fmt.Sprintf("%v", newHeader) {
+		t.Fail()
+	}
+
+	// check the header contents is what we expect
+	newReaderSecretKey, err := keys.ReadPrivateKey(strings.NewReader(newRecipientSec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+
+	buffer := bytes.NewBuffer(newHeader)
+
+	newFile := io.MultiReader(buffer, inFile)
+	c4ghReader, err := NewCrypt4GHReader(newFile, newReaderSecretKey, nil)
+
+	readBackWithDel := make([]byte, 100000)
+	delRead, err := c4ghReader.Read(readBackWithDel)
+	t.Logf("Read %d bytes", delRead)
+
+	if delRead != 100 {
+		t.Errorf("Expected 100 bytes read but got %d bytes", delRead)
+	}
+
+	if err != nil && err != io.EOF {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	sourceFile, err := os.Open("../test/sample.txt")
+	if err != nil {
+		t.Errorf("Opening of unencrypted source file failed: %v", err)
+	}
+
+	sourceFile.Seek(65500, 0)
+	sourceBytes := make([]byte, 400)
+	sourceRead, err := sourceFile.Read(sourceBytes)
+	if err != nil || sourceRead != 400 {
+		t.Errorf("Reading unencrypted source file failed: %v", err)
+	}
+
+	if !bytes.Equal(readBackWithDel[:delRead], sourceBytes[:100]) {
+		t.Logf("Observed: %v", readBackWithDel[:delRead])
+		t.Logf("Expected: %v", sourceBytes[:100])
+		t.Errorf("Unexpected data after re-encryption and del added")
+	}
+
 }
