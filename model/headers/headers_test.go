@@ -46,12 +46,12 @@ func TestHeaderMarshallingWithNonce(t *testing.T) {
 
 	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(sshEd25519SecEnc), []byte("123123"))
 	if err != nil {
-		panic(err)
+		t.Errorf("Reading private key from string failed: %v", err)
 	}
 
 	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
 	if err != nil {
-		panic(err)
+		t.Errorf("Reading public key from string failed: %v", err)
 	}
 	var nonce = [12]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
 	magic := [8]byte{}
@@ -104,11 +104,11 @@ func TestNewHeader(t *testing.T) {
 	buffer := bytes.NewBuffer(decodedHeader)
 	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
 	if err != nil {
-		panic(err)
+		t.Errorf("Reading private key from string failed: %v", err)
 	}
 	header, err := NewHeader(buffer, readerSecretKey)
 	if err != nil {
-		panic(err)
+		t.Errorf("NewHeader failed unexpectedly: %v", err)
 	}
 	if fmt.Sprintf("%v", header) != "&{[99 114 121 112 116 52 103 104] 1 2 [{[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 108 0 <nil> {65564 {0} 0 [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]}} {[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 100 0 <nil> {{1} 3 [1 2 3]}}]}" {
 		t.Fail()
@@ -154,12 +154,12 @@ func TestHeaderMarshallingWithoutNonce(t *testing.T) {
 
 	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(sshEd25519SecEnc), []byte("123123"))
 	if err != nil {
-		panic(err)
+		t.Errorf("Reading private key from string failed: %v", err)
 	}
 
 	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
 	if err != nil {
-		panic(err)
+		t.Errorf("Reading public key from string failed: %v", err)
 	}
 	magic := [8]byte{}
 	copy(magic[:], MagicNumber)
@@ -280,7 +280,7 @@ func TestReEncryptedHeaderReplacementAndAddition(t *testing.T) {
 
 	newHeader, err := ReEncryptHeader(oldHeader, readerSecretKey, newReaderPublicKeyList, del, anotherDel)
 	if err != nil {
-		panic(err)
+		t.Errorf("Reencrypting header gave unexpected failure: %v", err)
 	}
 	t.Logf("Header: %v", newHeader)
 
@@ -297,7 +297,7 @@ func TestReEncryptedHeaderReplacementAndAddition(t *testing.T) {
 	buffer := bytes.NewBuffer(newHeader)
 	header, err := NewHeader(buffer, newReaderSecretKey)
 	if err != nil {
-		panic(err)
+		t.Errorf("NewHeader gave unexpected failure: %v", err)
 	}
 
 	newDel, ok := header.HeaderPackets[1].EncryptedHeaderPacket.(DataEditListHeaderPacket)
@@ -335,7 +335,7 @@ func TestReEncryptedHeaderReplacementAndAddition(t *testing.T) {
 	buffer = bytes.NewBuffer(newerHeader)
 	header, err = NewHeader(buffer, readerSecretKey)
 	if err != nil {
-		panic(err)
+		t.Errorf("NewHeader gave unexpected failure: %v", err)
 	}
 
 	newDel, ok = header.HeaderPackets[1].EncryptedHeaderPacket.(DataEditListHeaderPacket)
@@ -373,7 +373,7 @@ func TestReEncryptedHeader(t *testing.T) {
 
 	newHeader, err := ReEncryptHeader(oldHeader, readerSecretKey, newReaderPublicKeyList)
 	if err != nil {
-		panic(err)
+		t.Errorf("ReEncryptHeader gave unexpected failure: %v", err)
 	}
 
 	// if the headers are similar then that is not ok
@@ -389,7 +389,7 @@ func TestReEncryptedHeader(t *testing.T) {
 	buffer := bytes.NewBuffer(newHeader)
 	header, err := NewHeader(buffer, newReaderSecretKey)
 	if err != nil {
-		panic(err)
+		t.Errorf("NewHeader gave unexpected failure: %v", err)
 	}
 	if fmt.Sprintf("%v", header) != "&{[99 114 121 112 116 52 103 104] 1 1 [{[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 108 0 <nil> {65564 {0} 0 [111 194 187 210 222 31 213 211 134 204 70 51 56 197 11 150 188 141 28 253 188 188 76 243 7 143 50 179 45 172 135 132]}}]}" {
 		t.Error(header)
@@ -428,5 +428,4 @@ func TestEncryptedSegmentSize(t *testing.T) {
 	if err == nil {
 		t.Errorf("EncryptedSegmentSize worked where it should fail: %v", err)
 	}
-
 }

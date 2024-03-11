@@ -1426,7 +1426,7 @@ func TestReEncryptedHeaderReplacementAndAdditionFileRead(t *testing.T) {
 
 	newHeader, err := headers.ReEncryptHeader(oldHeader, readerSecretKey, newReaderPublicKeyList, del)
 	if err != nil {
-		panic(err)
+		t.Errorf("NewHeader failed unexpectedly: %v", err)
 	}
 	t.Logf("Header: %v", newHeader)
 
@@ -1482,5 +1482,4 @@ func TestReEncryptedHeaderReplacementAndAdditionFileRead(t *testing.T) {
 		t.Logf("Expected: %v", sourceBytes[:100])
 		t.Errorf("Unexpected data after re-encryption and del added")
 	}
-
 }
