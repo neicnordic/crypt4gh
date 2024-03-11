@@ -339,12 +339,10 @@ func TestReEncryptedHeaderReplacementAndAddition(t *testing.T) {
 	}
 
 	newDel, ok = header.HeaderPackets[1].EncryptedHeaderPacket.(DataEditListHeaderPacket)
-
 	if !ok {
 		t.Logf("Not DEL as expected: %v", header.HeaderPackets[1].EncryptedHeaderPacket)
 		t.Fail()
 	}
-
 	if newDel.NumberLengths != 4 || !reflect.DeepEqual(newDel.Lengths, []uint64{0, 5, 10, 15}) {
 		t.Logf("Unexpected length (%d vs 4) or content in copied DEL: %v vs {0, 5, 10, 15}", newDel.NumberLengths, newDel.Lengths)
 		t.Fail()
