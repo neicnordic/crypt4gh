@@ -299,3 +299,37 @@ func TestReEncryptedHeader(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestEncryptedSegmentSize(t *testing.T) {
+	inFile, err := os.Open("../../test/sample.txt.enc")
+	if err != nil {
+		t.Errorf("Fileopen failed: %v", err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Errorf("ReadPrivateKey failed: %v", err)
+	}
+
+	header, err := ReadHeader(inFile)
+	if err != nil {
+		t.Errorf("ReadHeader failed: %v", err)
+	}
+
+	size, err := EncryptedSegmentSize(header, readerSecretKey)
+	if err != nil {
+		t.Errorf("EncryptedSegmentSize failed where it should work: %v", err)
+	} else if size != 65564 {
+		t.Errorf("EncryptedSegmentSize returned unexpected size %d (expected 65564)", size)
+	}
+
+	_, err = EncryptedSegmentSize(header, ([32]byte)(make([]byte, 32)))
+	if err == nil {
+		t.Errorf("EncryptedSegmentSize worked where it should fail: %v", err)
+	}
+
+	_, err = EncryptedSegmentSize(make([]byte, 2), readerSecretKey)
+	if err == nil {
+		t.Errorf("EncryptedSegmentSize worked where it should fail: %v", err)
+	}
+
+}
