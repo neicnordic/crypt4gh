@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -45,12 +46,12 @@ func TestHeaderMarshallingWithNonce(t *testing.T) {
 
 	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(sshEd25519SecEnc), []byte("123123"))
 	if err != nil {
-		panic(err)
+		t.Errorf("Reading private key from string failed: %v", err)
 	}
 
 	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
 	if err != nil {
-		panic(err)
+		t.Errorf("Reading public key from string failed: %v", err)
 	}
 	var nonce = [12]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
 	magic := [8]byte{}
@@ -103,11 +104,11 @@ func TestNewHeader(t *testing.T) {
 	buffer := bytes.NewBuffer(decodedHeader)
 	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
 	if err != nil {
-		panic(err)
+		t.Errorf("Reading private key from string failed: %v", err)
 	}
 	header, err := NewHeader(buffer, readerSecretKey)
 	if err != nil {
-		panic(err)
+		t.Errorf("NewHeader failed unexpectedly: %v", err)
 	}
 	if fmt.Sprintf("%v", header) != "&{[99 114 121 112 116 52 103 104] 1 2 [{[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 108 0 <nil> {65564 {0} 0 [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]}} {[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 100 0 <nil> {{1} 3 [1 2 3]}}]}" {
 		t.Fail()
@@ -153,12 +154,12 @@ func TestHeaderMarshallingWithoutNonce(t *testing.T) {
 
 	writerPrivateKey, err := keys.ReadPrivateKey(strings.NewReader(sshEd25519SecEnc), []byte("123123"))
 	if err != nil {
-		panic(err)
+		t.Errorf("Reading private key from string failed: %v", err)
 	}
 
 	readerPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
 	if err != nil {
-		panic(err)
+		t.Errorf("Reading public key from string failed: %v", err)
 	}
 	magic := [8]byte{}
 	copy(magic[:], MagicNumber)
@@ -253,6 +254,102 @@ func TestHeader_GetDataEditListHeaderPacket(t *testing.T) {
 	}
 }
 
+func TestReEncryptedHeaderReplacementAndAddition(t *testing.T) {
+	inFile, err := os.Open("../../test/sample.txt.enc")
+	if err != nil {
+		t.Error(err)
+	}
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	oldHeader, err := ReadHeader(inFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	newReaderPublicKey, err := keys.ReadPublicKey(strings.NewReader(newRecipientPub))
+	if err != nil {
+		t.Error(err)
+	}
+	newReaderPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	newReaderPublicKeyList = append(newReaderPublicKeyList, newReaderPublicKey)
+
+	del := DataEditListHeaderPacket{PacketType: PacketType{DataEditList}, NumberLengths: 2, Lengths: []uint64{10, 100}}
+	anotherDel := DataEditListHeaderPacket{PacketType: PacketType{DataEditList}, NumberLengths: 4, Lengths: []uint64{0, 5, 10, 15}}
+
+	newHeader, err := ReEncryptHeader(oldHeader, readerSecretKey, newReaderPublicKeyList, del, anotherDel)
+	if err != nil {
+		t.Errorf("Reencrypting header gave unexpected failure: %v", err)
+	}
+	t.Logf("Header: %v", newHeader)
+
+	// if the headers are similar then that is not ok
+	if fmt.Sprintf("%v", oldHeader) == fmt.Sprintf("%v", newHeader) {
+		t.Fail()
+	}
+
+	// check the header contents is what we expect
+	newReaderSecretKey, err := keys.ReadPrivateKey(strings.NewReader(newRecipientSec), []byte("password"))
+	if err != nil {
+		t.Error(err)
+	}
+	buffer := bytes.NewBuffer(newHeader)
+	header, err := NewHeader(buffer, newReaderSecretKey)
+	if err != nil {
+		t.Errorf("NewHeader gave unexpected failure: %v", err)
+	}
+
+	newDel, ok := header.HeaderPackets[1].EncryptedHeaderPacket.(DataEditListHeaderPacket)
+
+	if !ok {
+		t.Logf("Not DEL as expected: %v", header.HeaderPackets[1].EncryptedHeaderPacket)
+		t.Fail()
+	}
+
+	if newDel.NumberLengths != 4 || !reflect.DeepEqual(newDel.Lengths, []uint64{0, 5, 10, 15}) {
+		t.Logf("Unexpected length (%d vs 4) or content in overriden DEL: %v vs {0, 5, 10, 15}", newDel.NumberLengths, newDel.Lengths)
+		t.Fail()
+	}
+
+	// Test DEL copying when reencryption, i.e. when the DEL is not replaced. Encrypt back for the original recipient
+
+	newRecipientSecretKey, err := keys.ReadPrivateKey(strings.NewReader(newRecipientSec), []byte("password"))
+	if err != nil {
+		t.Errorf("Failed creating new recipient secret key: %v", err)
+	}
+
+	newerReaderPublicKey, err := keys.ReadPublicKey(strings.NewReader(crypt4ghX25519Pub))
+	if err != nil {
+		t.Error(err)
+	}
+
+	newerReaderPublicKeyList := [][chacha20poly1305.KeySize]byte{}
+	newerReaderPublicKeyList = append(newerReaderPublicKeyList, newerReaderPublicKey)
+
+	newerHeader, err := ReEncryptHeader(newHeader, newRecipientSecretKey, newerReaderPublicKeyList)
+	if err != nil {
+		t.Errorf("Reencryption back to original recipient failed: %v", err)
+	}
+
+	buffer = bytes.NewBuffer(newerHeader)
+	header, err = NewHeader(buffer, readerSecretKey)
+	if err != nil {
+		t.Errorf("NewHeader gave unexpected failure: %v", err)
+	}
+
+	newDel, ok = header.HeaderPackets[1].EncryptedHeaderPacket.(DataEditListHeaderPacket)
+	if !ok {
+		t.Logf("Not DEL as expected: %v", header.HeaderPackets[1].EncryptedHeaderPacket)
+		t.Fail()
+	}
+	if newDel.NumberLengths != 4 || !reflect.DeepEqual(newDel.Lengths, []uint64{0, 5, 10, 15}) {
+		t.Logf("Unexpected length (%d vs 4) or content in copied DEL: %v vs {0, 5, 10, 15}", newDel.NumberLengths, newDel.Lengths)
+		t.Fail()
+	}
+
+}
+
 func TestReEncryptedHeader(t *testing.T) {
 	inFile, err := os.Open("../../test/sample.txt.enc")
 	if err != nil {
@@ -276,7 +373,7 @@ func TestReEncryptedHeader(t *testing.T) {
 
 	newHeader, err := ReEncryptHeader(oldHeader, readerSecretKey, newReaderPublicKeyList)
 	if err != nil {
-		panic(err)
+		t.Errorf("ReEncryptHeader gave unexpected failure: %v", err)
 	}
 
 	// if the headers are similar then that is not ok
@@ -292,7 +389,7 @@ func TestReEncryptedHeader(t *testing.T) {
 	buffer := bytes.NewBuffer(newHeader)
 	header, err := NewHeader(buffer, newReaderSecretKey)
 	if err != nil {
-		panic(err)
+		t.Errorf("NewHeader gave unexpected failure: %v", err)
 	}
 	if fmt.Sprintf("%v", header) != "&{[99 114 121 112 116 52 103 104] 1 1 [{[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 108 0 <nil> {65564 {0} 0 [111 194 187 210 222 31 213 211 134 204 70 51 56 197 11 150 188 141 28 253 188 188 76 243 7 143 50 179 45 172 135 132]}}]}" {
 		t.Error(header)
@@ -331,5 +428,4 @@ func TestEncryptedSegmentSize(t *testing.T) {
 	if err == nil {
 		t.Errorf("EncryptedSegmentSize worked where it should fail: %v", err)
 	}
-
 }
