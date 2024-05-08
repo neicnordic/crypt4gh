@@ -429,3 +429,37 @@ func TestEncryptedSegmentSize(t *testing.T) {
 		t.Errorf("EncryptedSegmentSize worked where it should fail: %v", err)
 	}
 }
+
+func TestHeaderLimits(t *testing.T) {
+
+	// Test ReadHeader packet count limit
+	b := bytes.NewBuffer([]byte("crypt4gh\x01\x00\x00\x00\x01\x00\x00\x11"))
+	_, err := ReadHeader(b)
+	if err == nil || !strings.Contains(err.Error(), "exceeds maximum") || !strings.Contains(err.Error(), "count") {
+		t.Errorf("Didn't see expected error from ReadHeader, expected header packet count, got %v", err)
+	}
+
+	// Test ReadHeader packet length limit
+	b = bytes.NewBuffer([]byte("crypt4gh\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x01\x00\x00"))
+	_, err = ReadHeader(b)
+
+	if err == nil || !strings.Contains(err.Error(), "exceeds maximum") || !strings.Contains(err.Error(), "length") {
+		t.Errorf("Didn't see expected error from ReadHeader, expected header packet count, got %v", err)
+	}
+
+	// Test NewHeader packet count limit
+	var key [chacha20poly1305.KeySize]byte
+	b = bytes.NewBuffer([]byte("crypt4gh\x01\x00\x00\x00\x01\x00\x00\x11"))
+	_, err = NewHeader(b, key)
+	if err == nil || !strings.Contains(err.Error(), "exceeds maximum") || !strings.Contains(err.Error(), "count") {
+		t.Errorf("Didn't see expected error from ReadHeader, expected header packet count, got %v", err)
+	}
+
+	// Test NewHeader packet length limit
+	b = bytes.NewBuffer([]byte("crypt4gh\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x01\x00\x00"))
+	_, err = NewHeader(b, key)
+	if err == nil || !strings.Contains(err.Error(), "exceeds maximum") || !strings.Contains(err.Error(), "length") {
+		t.Errorf("Didn't see expected error from ReadHeader, expected header packet count, got %v", err)
+	}
+
+}

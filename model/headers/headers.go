@@ -24,6 +24,14 @@ const (
 
 	// UnencryptedDataSegmentSize is the size of chunk of raw data.
 	UnencryptedDataSegmentSize int = 65536
+
+	// MaxAllowedHeaderPackets is the highest number of header packets
+	// we allow.
+	MaxAllowedHeaderPackets uint32 = 65536
+
+	// MaxAllowedHeaderPackets is the highest length of a single header packet
+	// we allow.
+	MaxAllowedHeaderPacketLength uint32 = 16 * 1024 * 1024
 )
 
 // HeaderPacketType is the enum listing possible header packet types.
@@ -97,6 +105,9 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 	if err != nil {
 		return
 	}
+	if headerPacketCount > MaxAllowedHeaderPackets {
+		return nil, fmt.Errorf("header packet count %d exceeds maximum allowed %d, likely stream is corrupted", headerPacketCount, MaxAllowedHeaderPackets)
+	}
 	err = binary.Write(buffer, binary.LittleEndian, headerPacketCount)
 	if err != nil {
 		return
@@ -106,6 +117,9 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 		err = binary.Read(reader, binary.LittleEndian, &packetLength)
 		if err != nil {
 			return
+		}
+		if packetLength > MaxAllowedHeaderPacketLength {
+			return nil, fmt.Errorf("header packet length %d exceeds maximum allowed %d, likely stream is corrupted", packetLength, MaxAllowedHeaderPacketLength)
 		}
 		err = binary.Write(buffer, binary.LittleEndian, packetLength)
 		if err != nil {
@@ -140,6 +154,9 @@ func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte
 	err = binary.Read(reader, binary.LittleEndian, &header.HeaderPacketCount)
 	if err != nil {
 		return nil, err
+	}
+	if header.HeaderPacketCount > MaxAllowedHeaderPackets {
+		return nil, fmt.Errorf("header packet count %d exceeds maximum allowed %d, likely stream is corrupted", header.HeaderPacketCount, MaxAllowedHeaderPackets)
 	}
 	header.HeaderPackets = make([]HeaderPacket, 0)
 	for i := uint32(0); i < header.HeaderPacketCount; i++ {
@@ -243,6 +260,9 @@ func NewHeaderPacket(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySiz
 	err := binary.Read(reader, binary.LittleEndian, &headerPacket.PacketLength)
 	if err != nil {
 		return nil, err
+	}
+	if headerPacket.PacketLength > MaxAllowedHeaderPacketLength {
+		return nil, fmt.Errorf("header packet length %d exceeds maximum allowed %d, likely stream is corrupted", headerPacket.PacketLength, MaxAllowedHeaderPacketLength)
 	}
 	err = binary.Read(reader, binary.LittleEndian, &headerPacket.HeaderEncryptionMethod)
 	if err != nil {
