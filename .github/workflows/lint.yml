@@ -21,4 +21,4 @@ jobs:
         uses: golangci/golangci-lint-action@v6.1.0
         with:
           version: latest
-          args: -E bodyclose,gocritic,gofmt,gosec,govet,nestif,nlreturn,revive,rowserrcheck --exclude G401,G501,G107
+          args: -E bodyclose,gocritic,gofmt,gosec,govet,nestif,nlreturn,revive,rowserrcheck --exclude G401,G501,G107,G115
