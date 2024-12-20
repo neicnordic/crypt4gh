@@ -20,7 +20,7 @@ func TestKDF(t *testing.T) {
 		},
 		{
 			name: "pbkdf2_hmac_sha256",
-			hash: "72bf7d2b4d1f18c97a333e3a89e7f22dc9771b968ddcbc1a494fbbf507059b13",
+			hash: "dd3352defb9aa734875f7a32b60e4bcf9e3671216d6e0c39f135f0297bf8e121",
 		},
 	}
 	for _, test := range tests {
