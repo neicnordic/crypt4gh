@@ -9,9 +9,9 @@ require (
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/logrusorgru/aurora/v4 v4.0.0
 	golang.org/x/crypto v0.31.0
-	golang.org/x/term v0.27.0
+	golang.org/x/term v0.28.0
 )
 
-require golang.org/x/sys v0.28.0 // indirect
+require golang.org/x/sys v0.29.0 // indirect
 
 retract v1.8.7 // has a bug related to file decryption that ends up in loop.
