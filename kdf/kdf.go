@@ -2,7 +2,7 @@
 package kdf
 
 import (
-	"crypto/sha512"
+	"crypto/sha256"
 
 	// package is old but corresponds to "golang.org/x/crypto/ssh/internal/bcrypt_pbkdf"
 	"github.com/dchest/bcrypt_pbkdf"
@@ -15,7 +15,7 @@ import (
 var KDFS = map[string]KDF{
 	"scrypt":             sCrypt{},
 	"bcrypt":             bCrypt{},
-	"pbkdf2_hmac_sha256": pbkdf2sha512{},
+	"pbkdf2_hmac_sha256": pbkdf2sha256{},
 }
 
 // KDF interface holding "Derive" method.
@@ -37,9 +37,9 @@ func (bCrypt) Derive(rounds int, password, salt []byte) (derivedKey []byte, err 
 	return bcrypt_pbkdf.Key(password, salt, rounds, chacha20poly1305.KeySize)
 }
 
-type pbkdf2sha512 struct {
+type pbkdf2sha256 struct {
 }
 
-func (pbkdf2sha512) Derive(rounds int, password, salt []byte) (derivedKey []byte, err error) {
-	return pbkdf2.Key(password, salt, rounds, chacha20poly1305.KeySize, sha512.New), nil
+func (pbkdf2sha256) Derive(rounds int, password, salt []byte) (derivedKey []byte, err error) {
+	return pbkdf2.Key(password, salt, rounds, chacha20poly1305.KeySize, sha256.New), nil
 }
