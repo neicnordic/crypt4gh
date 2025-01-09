@@ -1,0 +1,47 @@
+name: Tag
+
+on:
+    pull_request:
+        branches:
+            - main
+        paths:
+            - "internal/version/version.go"
+        types:
+            - closed
+    push:
+
+jobs:
+    new_tag:
+        # if: github.event.pull_request.merged == true
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                fetch-depth: '0'
+
+            - name: Bump version and push tag
+              id: check
+              uses: anothrNick/github-tag-action@1.71.0
+              env:
+                DRY_RUN: true
+                DEFAULT_BUMP: patch
+
+            - name: check tag
+              id: version
+              run: |
+                echo "in_file=$(cat internal/version/version.go | grep "^var Version = " | cut -d ' ' -f4 | tr -d "\"")" >> $GITHUB_OUTPUT
+
+            - uses: jackbilestech/semver-compare@1.0.4
+              id: compare
+              with:
+                head: ${{steps.version.outputs.in_file}}
+                base: ${{steps.check.outputs.old_tag}}
+                operator: '>'
+
+            - name: Bump version and push tag
+              uses: anothrNick/github-tag-action@1.71.0
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                CUSTOM_TAG: "V${{steps.version.outputs.in_file}}"
