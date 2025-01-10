@@ -8,11 +8,10 @@ on:
             - "internal/version/version.go"
         types:
             - closed
-    push:
 
 jobs:
     new_tag:
-        # if: github.event.pull_request.merged == true
+        if: github.event.pull_request.merged == true
         runs-on: ubuntu-latest
         permissions:
             contents: write
