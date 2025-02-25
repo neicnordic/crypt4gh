@@ -7,7 +7,7 @@ import (
 )
 
 // The version in the current branch
-var Version = "1.13.1"
+var Version = "1.14.0"
 
 // If this is "" (empty string) then it means that it is a final release.
 // Otherwise, this is a pre-release e.g. "dev", "beta", "rc1", etc.
