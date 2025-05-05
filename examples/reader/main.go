@@ -74,7 +74,7 @@ func readFile(filename string, writer io.Writer, readerKey [chacha20poly1305.Key
 
 	// Loop until we've read what we should (if no/faulty end given, that's EOF)
 	for end == 0 || togo > 0 {
-		rbuf := buf[:]
+		rbuf := buf
 
 		if end != 0 && togo < 4096 {
 			// If we don't want to read as much as 4096 bytes
