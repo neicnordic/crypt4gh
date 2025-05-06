@@ -18,7 +18,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6.5.2
-        with:
-          version: latest
-          args: -E bodyclose,gocritic,gofmt,gosec,govet,nestif,nlreturn,revive,rowserrcheck --exclude G401,G501,G107,G115
+        uses: golangci/golangci-lint-action@v8.0.0

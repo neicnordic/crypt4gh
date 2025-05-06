@@ -21,11 +21,13 @@ func readPublicKey(filename string) ([chacha20poly1305.KeySize]byte, error) {
 
 	if err != nil {
 		var nilKey [chacha20poly1305.KeySize]byte
+
 		return nilKey, err
 	}
 
 	key, err := keys.ReadPublicKey(reader)
 	reader.Close()
+
 	return key, err
 }
 
@@ -36,11 +38,13 @@ func readPrivateKey(filename string, password []byte) ([chacha20poly1305.KeySize
 
 	if err != nil {
 		var nilKey [chacha20poly1305.KeySize]byte
+
 		return nilKey, err
 	}
 
 	key, err := keys.ReadPrivateKey(reader, password)
 	reader.Close()
+
 	return key, err
 }
 
@@ -74,7 +78,7 @@ func readFile(filename string, writer io.Writer, readerKey [chacha20poly1305.Key
 
 	// Loop until we've read what we should (if no/faulty end given, that's EOF)
 	for end == 0 || togo > 0 {
-		rbuf := buf[:]
+		rbuf := buf
 
 		if end != 0 && togo < 4096 {
 			// If we don't want to read as much as 4096 bytes
@@ -149,10 +153,12 @@ func getStartEnd(args []string) (start, end int64, err error) {
 
 	if end != 0 {
 		fmt.Printf("Will start at %d and read to the end.\n", start)
+
 		return start, end, nil
 	}
 
 	fmt.Printf("Will start at %d and read to %d.\n", start, end)
+
 	return start, end, nil
 
 }
