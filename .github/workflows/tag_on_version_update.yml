@@ -22,7 +22,7 @@ jobs:
 
             - name: Bump version and push tag
               id: check
-              uses: anothrNick/github-tag-action@1.71.0
+              uses: anothrNick/github-tag-action@1.73.0
               env:
                 DRY_RUN: true
                 DEFAULT_BUMP: patch
@@ -40,7 +40,7 @@ jobs:
                 operator: '>'
 
             - name: Bump version and push tag
-              uses: anothrNick/github-tag-action@1.71.0
+              uses: anothrNick/github-tag-action@1.73.0
               env:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                 CUSTOM_TAG: "V${{steps.version.outputs.in_file}}"
