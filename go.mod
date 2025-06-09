@@ -8,7 +8,7 @@ require (
 	github.com/hashicorp/go-version v1.7.0
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/logrusorgru/aurora/v4 v4.0.0
-	golang.org/x/crypto v0.38.0
+	golang.org/x/crypto v0.39.0
 	golang.org/x/term v0.32.0
 )
 
