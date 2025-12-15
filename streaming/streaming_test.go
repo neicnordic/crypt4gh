@@ -1113,8 +1113,8 @@ func TestSeek(t *testing.T) {
 		}
 
 		buf = make([]byte, 50000)
-		buf[225] = 42
-		buf[226] = 137
+		buf[225] = 42 // nolint gosec
+		buf[226] = 137 // nolint gosec
 
 		if s, err := reader.Read(buf); err != io.EOF || s != 225 {
 			t.Errorf("Read after seek failed (got s=%d, err=%v)", s, err)
