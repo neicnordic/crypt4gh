@@ -6,25 +6,43 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 
 	"github.com/neicnordic/crypt4gh/keys"
 	"github.com/neicnordic/crypt4gh/streaming"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
+// getRooot generates a suitable fencing for path traversal. Since this is
+// a generic demonstrator, we allow very wide access. Please consider suitable
+// fencing for your implementations
+func getRoot() (*os.Root, error) {
+	root, err := os.OpenRoot("/")
+
+	return root, err
+}
+
 // readPublicKey reads the public key from filename and returns the key
 // and/or any error encountered.
 func readPublicKey(filename string) ([chacha20poly1305.KeySize]byte, error) {
-	reader, err := os.Open(filename)
+	var key [chacha20poly1305.KeySize]byte
 
+	root, err := getRoot()
 	if err != nil {
-		var nilKey [chacha20poly1305.KeySize]byte
-
-		return nilKey, err
+		return key, err
 	}
 
-	key, err := keys.ReadPublicKey(reader)
-	reader.Close()
+	reader, err := root.Open(filename)
+	if err != nil {
+		return key, err
+	}
+
+	key, err = keys.ReadPublicKey(reader)
+	if err != nil {
+		return key, err
+	}
+
+	err = reader.Close()
 
 	return key, err
 }
@@ -32,16 +50,24 @@ func readPublicKey(filename string) ([chacha20poly1305.KeySize]byte, error) {
 // readPrivateKey reads the private key from filename, possibly decrypts it
 // (if password is supplied) and returns the key and/or any error encountered.
 func readPrivateKey(filename string, password []byte) ([chacha20poly1305.KeySize]byte, error) {
-	reader, err := os.Open(filename)
+	var key [chacha20poly1305.KeySize]byte
 
+	root, err := getRoot()
 	if err != nil {
-		var nilKey [chacha20poly1305.KeySize]byte
-
-		return nilKey, err
+		return key, err
 	}
 
-	key, err := keys.ReadPrivateKey(reader, password)
-	reader.Close()
+	reader, err := root.Open(filename)
+	if err != nil {
+		return key, err
+	}
+
+	key, err = keys.ReadPrivateKey(reader, password)
+	if err != nil {
+		return key, err
+	}
+
+	err = reader.Close()
 
 	return key, err
 }
@@ -50,7 +76,12 @@ func readPrivateKey(filename string, password []byte) ([chacha20poly1305.KeySize
 // as a stream encrypted for readerKey, using writerKey
 func writeFile(reader io.Reader, writerKey, readerKey [chacha20poly1305.KeySize]byte, filename string) error {
 
-	underWriter, err := os.Create(filename)
+	root, err := getRoot()
+	if err != nil {
+		return err
+	}
+
+	underWriter, err := root.Create(filename)
 	if err != nil {
 		return err
 	}
@@ -81,6 +112,18 @@ READERPUBLICKEY with WRITERPRIVATEKEY.
 	os.Exit(0)
 }
 
+// cleanPrintable removes any non-printable chars in the string
+func cleanPrintable(s string) string {
+	r := regexp.MustCompile("[:print:]*")
+
+	print := r.Find([]byte(s))
+	if print == nil {
+		return ""
+	}
+
+	return string(print)
+}
+
 func main() {
 	args := os.Args
 
@@ -107,6 +150,6 @@ func main() {
 	fmt.Printf("Will write stdin to %s close when done (e.g. Ctrl-D)\n\n", outputFilename)
 	err = writeFile(os.Stdin, privateKey, publicKey, outputFilename)
 	if err != nil {
-		log.Fatalf("Error from writing encrypted file %s: %v", outputFilename, err)
+		log.Fatalf("Error from writing encrypted file %s: %v", cleanPrintable(outputFilename), err) // #nosec G706
 	}
 }

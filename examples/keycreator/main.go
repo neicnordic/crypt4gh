@@ -19,6 +19,15 @@ and the private to PRIVATEKEY. PRIVATEKEY will be encrypted with PASSWORD.
 	os.Exit(0)
 }
 
+// getRooot generates a suitable fencing for path traversal. Since this is
+// a generic demonstrator, we allow very wide access. Please consider suitable
+// fencing for your implementations
+func getRoot() (*os.Root, error) {
+	root, err := os.OpenRoot("/")
+
+	return root, err
+}
+
 // generateAndWriteKeyFiles does the heavy lifting here, generating
 // a keypair and writing them to the specified filenames, the
 // private key encrypted with password
@@ -32,7 +41,14 @@ func generateAndWriteKeyFiles(publicKeyFileName, privateKeyFileName, password st
 		return fmt.Errorf("Error while generating key pair: %v", err)
 	}
 
-	w, err := os.Create(privateKeyFileName)
+	// Limit for taint handling, since this is an example we're not being
+	// overly strict though
+	root, err := getRoot()
+	if err != nil {
+		return fmt.Errorf("Error when opening root: %v", err)
+	}
+
+	w, err := root.Create(privateKeyFileName)
 	if err != nil {
 		return fmt.Errorf("Error when opening private key output %s: %v", privateKeyFileName, err)
 	}
@@ -46,7 +62,7 @@ func generateAndWriteKeyFiles(publicKeyFileName, privateKeyFileName, password st
 		return fmt.Errorf("Error when closing private key file: %v", err)
 	}
 
-	w, err = os.Create(publicKeyFileName)
+	w, err = root.Create(publicKeyFileName)
 	if err != nil {
 		return fmt.Errorf("Error when opening public key output %s: %v", publicKeyFileName, err)
 	}
