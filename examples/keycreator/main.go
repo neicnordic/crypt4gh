@@ -19,7 +19,7 @@ and the private to PRIVATEKEY. PRIVATEKEY will be encrypted with PASSWORD.
 	os.Exit(0)
 }
 
-// getRooot generates a suitable fencing for path traversal. Since this is
+// getRoot generates a suitable fencing for path traversal. Since this is
 // a generic demonstrator, we allow very wide access. Please consider suitable
 // fencing for your implementations
 func getRoot() (*os.Root, error) {
