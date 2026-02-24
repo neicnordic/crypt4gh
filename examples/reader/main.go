@@ -40,12 +40,9 @@ func readPublicKey(filename string) ([chacha20poly1305.KeySize]byte, error) {
 		return key, err
 	}
 
-	key, err = keys.ReadPublicKey(reader)
-	if err != nil {
-		return key, err
-	}
+	defer reader.Close() // nolint:errcheck
 
-	err = reader.Close()
+	key, err = keys.ReadPublicKey(reader)
 
 	return key, err
 }
@@ -65,12 +62,9 @@ func readPrivateKey(filename string, password []byte) ([chacha20poly1305.KeySize
 		return key, err
 	}
 
-	key, err = keys.ReadPrivateKey(reader, password)
-	if err != nil {
-		return key, err
-	}
+	defer reader.Close() // nolint:errcheck
 
-	err = reader.Close()
+	key, err = keys.ReadPrivateKey(reader, password)
 
 	return key, err
 }
