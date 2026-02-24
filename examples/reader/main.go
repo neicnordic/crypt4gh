@@ -162,7 +162,7 @@ the start. If end is given, stop there (byte at offsent end is not included).
 
 // cleanPrintable removes any non-printable chars in the string
 func cleanPrintable(s string) string {
-	r := regexp.MustCompile("[:print:]*")
+	r := regexp.MustCompile("[[:print:]]+")
 
 	print := r.Find([]byte(s))
 	if print == nil {
@@ -174,7 +174,7 @@ func cleanPrintable(s string) string {
 
 // cleanNumeric remove any non-numeric chars in the string
 func cleanNumeric(s string) string {
-	r := regexp.MustCompile("[:numeric:]*")
+	r := regexp.MustCompile("[[:numeric:]]+")
 
 	number := r.Find([]byte(s))
 	if number == nil {
