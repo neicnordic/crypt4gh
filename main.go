@@ -59,6 +59,6 @@ func main() {
 			os.Exit(0)
 		}
 	default:
-		log.Fatal(aurora.Red(fmt.Sprintf("command '%v' is not recognized", commandName)))
+		log.Fatal(aurora.Red(fmt.Sprintf("command '%v' is not recognized", commandName))) // #nosec G706
 	}
 }

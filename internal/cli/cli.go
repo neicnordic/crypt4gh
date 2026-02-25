@@ -29,7 +29,7 @@ const (
 var generateOptions struct {
 	Name     string `short:"n" long:"name" description:"Key pair name" required:"true"`
 	Format   string `short:"f" long:"format" description:"Key pair format" choice:"openssl" choice:"crypt4gh" default:"crypt4gh"`
-	Password string `short:"p" long:"password" description:"Password to lock Crypt4GH private key (will be prompted afterwords if skipped)"`
+	Password string `short:"p" long:"password" description:"Password to lock Crypt4GH private key (will be prompted afterwords if skipped)"` // #nosec G117 - we want to expose these names
 }
 
 var generateOptionsParser = flags.NewParser(&generateOptions, flags.None)

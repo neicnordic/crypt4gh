@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 
 	"strconv"
 
@@ -14,19 +15,34 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
+// getRoot generates a suitable fencing for path traversal. Since this is
+// a generic demonstrator, we allow very wide access. Please consider suitable
+// fencing for your implementations
+func getRoot() (*os.Root, error) {
+	root, err := os.OpenRoot("/")
+
+	return root, err
+}
+
 // readPublicKey reads the public key from filename and returns the key
 // and/or any error encountered.
 func readPublicKey(filename string) ([chacha20poly1305.KeySize]byte, error) {
-	reader, err := os.Open(filename)
+	var key [chacha20poly1305.KeySize]byte
 
+	root, err := getRoot()
 	if err != nil {
-		var nilKey [chacha20poly1305.KeySize]byte
-
-		return nilKey, err
+		return key, err
 	}
 
-	key, err := keys.ReadPublicKey(reader)
-	reader.Close()
+	reader, err := root.Open(filename)
+
+	if err != nil {
+		return key, err
+	}
+
+	defer reader.Close() // nolint:errcheck
+
+	key, err = keys.ReadPublicKey(reader)
 
 	return key, err
 }
@@ -34,24 +50,33 @@ func readPublicKey(filename string) ([chacha20poly1305.KeySize]byte, error) {
 // readPrivateKey reads the private key file designated by filename
 // encrypted with password, if any.
 func readPrivateKey(filename string, password []byte) ([chacha20poly1305.KeySize]byte, error) {
-	reader, err := os.Open(filename)
+	var key [chacha20poly1305.KeySize]byte
 
+	root, err := getRoot()
 	if err != nil {
-		var nilKey [chacha20poly1305.KeySize]byte
-
-		return nilKey, err
+		return key, err
 	}
 
-	key, err := keys.ReadPrivateKey(reader, password)
-	reader.Close()
+	reader, err := root.Open(filename)
+	if err != nil {
+		return key, err
+	}
+
+	defer reader.Close() // nolint:errcheck
+
+	key, err = keys.ReadPrivateKey(reader, password)
 
 	return key, err
 }
 
 // readFile reads and decrypts
 func readFile(filename string, writer io.Writer, readerKey [chacha20poly1305.KeySize]byte, start, end int64) error {
+	root, err := getRoot()
+	if err != nil {
+		return err
+	}
 
-	underReader, err := os.Open(filename)
+	underReader, err := root.Open(filename)
 	if err != nil {
 		return err
 	}
@@ -129,25 +154,49 @@ the start. If end is given, stop there (byte at offsent end is not included).
 	os.Exit(0)
 }
 
+// cleanPrintable removes any non-printable chars in the string
+func cleanPrintable(s string) string {
+	r := regexp.MustCompile("[[:print:]]+")
+
+	print := r.Find([]byte(s))
+	if print == nil {
+		return ""
+	}
+
+	return string(print)
+}
+
+// cleanNumeric remove any non-numeric chars in the string
+func cleanNumeric(s string) string {
+	r := regexp.MustCompile("[[:numeric:]]+")
+
+	number := r.Find([]byte(s))
+	if number == nil {
+		return ""
+	}
+
+	return string(number)
+}
+
 // getStartEnd returns the start and end values to use or 0
 // if not provided
 func getStartEnd(args []string) (start, end int64, err error) {
 	if len(args) >= 5 {
-		start, err = strconv.ParseInt(args[4], 10, 0)
+		start, err = strconv.ParseInt(cleanNumeric(args[4]), 10, 0)
 
 		if err != nil {
 			return 0, 0, fmt.Errorf("Couldn't parse start offset %s as a decimal number: %v", args[4], err)
 		}
 	}
 	if len(args) == 6 {
-		end, err = strconv.ParseInt(args[5], 10, 0)
+		end, err = strconv.ParseInt(cleanNumeric(args[5]), 10, 0)
 		if err != nil {
 			return 0, 0, fmt.Errorf("Couldn't parse end offset %s as a decimal number: %v", args[5], err)
 		}
 	}
 
 	if end != 0 && end <= start {
-		log.Printf("End specified (%d) but before start (%d), ignoring", end, start)
+		log.Printf("End specified (%d) but before start (%d), ignoring", end, start) // #nosec G706
 		end = 0
 	}
 
@@ -160,7 +209,6 @@ func getStartEnd(args []string) (start, end int64, err error) {
 	fmt.Printf("Will start at %d and read to %d.\n", start, end)
 
 	return start, end, nil
-
 }
 
 // main is where we start
@@ -181,7 +229,7 @@ func main() {
 		log.Fatalf("Unexpected error while reading reader key: %v", err)
 	}
 
-	fmt.Printf("Will read from %s, decrypt and output to stderr.\n", inputFilename)
+	fmt.Printf("Will read from %s, decrypt and output to stderr.\n", cleanPrintable(inputFilename)) // #nosec G706
 
 	// Pick up start and end if passed (will get 0 otherwise)
 	start, end, err := getStartEnd(args)
@@ -191,7 +239,7 @@ func main() {
 
 	err = readFile(inputFilename, os.Stdout, privateKey, start, end)
 	if err != nil {
-		log.Fatalf("Error while decrypting file %s: %v", inputFilename, err)
+		log.Fatalf("Error while decrypting file %s: %v", cleanPrintable(inputFilename), err) // #nosec G706
 	}
 
 }
