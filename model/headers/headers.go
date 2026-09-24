@@ -32,6 +32,14 @@ const (
 	// MaxAllowedHeaderPackets is the highest length of a single header packet
 	// we allow.
 	MaxAllowedHeaderPacketLength uint32 = 16 * 1024 * 1024
+
+	// minEncryptedHeaderPayload is the smallest a header packet's encrypted
+	// payload can be: a writer public key, a nonce and the Poly1305 tag.
+	minEncryptedHeaderPayload = chacha20poly1305.KeySize + chacha20poly1305.NonceSize + chacha20poly1305.Overhead
+
+	// minHeaderPacketLength is the smallest a header packet can be: the 4-byte
+	// length, the 4-byte encryption method and a minimum encrypted payload.
+	minHeaderPacketLength uint32 = 4 + 4 + minEncryptedHeaderPayload
 )
 
 // HeaderPacketType is the enum listing possible header packet types.
@@ -75,6 +83,17 @@ type HeaderReaderError struct {
 
 func (e *HeaderReaderError) Error() string {
 	return fmt.Sprintf("could not decrypt header for key: %v", e.ReaderPublicKey)
+}
+
+// UnknownHeaderPacketTypeError is returned for a header packet that decrypts but
+// carries a packet type this implementation does not understand. Per the
+// Crypt4GH spec such packets are ignored, so NewHeader skips them.
+type UnknownHeaderPacketTypeError struct {
+	PacketType uint32
+}
+
+func (e *UnknownHeaderPacketTypeError) Error() string {
+	return fmt.Sprintf("unsupported header packet type %d", e.PacketType)
 }
 
 // ReadHeader method strips off the header from the io.Reader and returns it as a byte array.
@@ -121,6 +140,11 @@ func ReadHeader(reader io.Reader) (header []byte, err error) {
 		if packetLength > MaxAllowedHeaderPacketLength {
 			return nil, fmt.Errorf("header packet length %d exceeds maximum allowed %d, likely stream is corrupted", packetLength, MaxAllowedHeaderPacketLength)
 		}
+		// Reject a length below the minimum before subtracting 4 below: a length
+		// under 4 would underflow the uint32 and make io.CopyN read gigabytes.
+		if packetLength < minHeaderPacketLength {
+			return nil, fmt.Errorf("header packet length %d is too short to be valid, likely stream is corrupted", packetLength)
+		}
 		err = binary.Write(buffer, binary.LittleEndian, packetLength)
 		if err != nil {
 			return
@@ -166,6 +190,10 @@ func NewHeader(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySize]byte
 			case *HeaderReaderError:
 				// do nothing
 				// we carry on and try the next header package
+				continue
+			case *UnknownHeaderPacketTypeError:
+				// an unknown packet type is ignored per the spec; the packet's
+				// bytes are already consumed so we carry on with the next one
 				continue
 			default:
 				// for any other error we return it
@@ -263,6 +291,13 @@ func NewHeaderPacket(reader io.Reader, readerPrivateKey [chacha20poly1305.KeySiz
 	}
 	if headerPacket.PacketLength > MaxAllowedHeaderPacketLength {
 		return nil, fmt.Errorf("header packet length %d exceeds maximum allowed %d, likely stream is corrupted", headerPacket.PacketLength, MaxAllowedHeaderPacketLength)
+	}
+	// PacketLength counts its own 4 bytes, the 4-byte encryption method and the
+	// encrypted payload (writer public key + nonce + Poly1305 tag at minimum).
+	// Reject anything shorter so the subtraction below cannot underflow and the
+	// payload cannot be too short to slice in NewEncryptedHeaderPacket.
+	if headerPacket.PacketLength < minHeaderPacketLength {
+		return nil, fmt.Errorf("header packet length %d is too short to be valid, likely stream is corrupted", headerPacket.PacketLength)
 	}
 	err = binary.Read(reader, binary.LittleEndian, &headerPacket.HeaderEncryptionMethod)
 	if err != nil {
@@ -380,6 +415,12 @@ type EncryptedHeaderPacket interface {
 // headerEncryptionMethod HeaderEncryptionMethod was not used thus we remove it
 func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, readerPrivateKey [chacha20poly1305.KeySize]byte) (*EncryptedHeaderPacket, error) {
 	var encryptedHeaderPacket EncryptedHeaderPacket
+	// A valid payload holds a writer public key, a nonce and the Poly1305 tag.
+	// A shorter buffer means the header was truncated; guard against it so the
+	// slicing below cannot panic.
+	if len(encryptedPacketPayload) < minEncryptedHeaderPayload {
+		return nil, fmt.Errorf("encrypted header packet payload is too short (%d bytes) to be valid", len(encryptedPacketPayload))
+	}
 	// for headerEncryptionMethod we only support X25519ChaCha20IETFPoly1305
 	// if we support more then we need to check for header
 	var writerPublicKeyBytes [chacha20poly1305.KeySize]byte
@@ -421,6 +462,12 @@ func NewEncryptedHeaderPacket(encryptedPacketPayload []byte, readerPrivateKey [c
 			return nil, err
 		}
 		encryptedHeaderPacket = *packet
+	default:
+		// An unknown packet type would otherwise leave encryptedHeaderPacket a
+		// nil interface and nil-dereference on the first GetPacketType() call.
+		// The bytes for this packet have already been consumed, so the stream
+		// stays in sync and NewHeader can skip it.
+		return nil, &UnknownHeaderPacketTypeError{PacketType: uint32(packetType)}
 	}
 
 	return &encryptedHeaderPacket, nil
