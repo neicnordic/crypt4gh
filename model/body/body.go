@@ -43,6 +43,13 @@ func (s *Segment) MarshalBinary() (data []byte, err error) {
 
 // UnmarshalBinary implements encoding.BinaryMarshaler.UnmarshalBinary() method.
 func (s *Segment) UnmarshalBinary(encryptedSegment []byte) error {
+	// A valid data segment always carries at least a nonce and the Poly1305
+	// authentication tag. A shorter buffer means the stream was truncated
+	// mid-segment; guard against it so slicing the nonce cannot panic.
+	if len(encryptedSegment) < chacha20poly1305.NonceSize+chacha20poly1305.Overhead {
+		return fmt.Errorf("data segment is too short (%d bytes) to be a valid Crypt4GH segment", len(encryptedSegment))
+	}
+
 	for _, dataEncryptionParametersHeaderPacket := range s.DataEncryptionParametersHeaderPackets {
 		if dataEncryptionParametersHeaderPacket.DataEncryptionMethod == headers.ChaCha20IETFPoly1305 {
 			dataKey := dataEncryptionParametersHeaderPacket.DataKey[:]
