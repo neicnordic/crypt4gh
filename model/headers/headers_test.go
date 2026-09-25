@@ -2,7 +2,10 @@ package headers
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -462,4 +465,194 @@ func TestHeaderLimits(t *testing.T) {
 		t.Errorf("Didn't see expected error from ReadHeader, expected header packet count, got %v", err)
 	}
 
+}
+
+func TestNewEncryptedHeaderPacketTooShort(t *testing.T) {
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A payload shorter than a writer public key, a nonce and the Poly1305 tag
+	// was sliced without a length check, which panicked. It must now return an
+	// error for every short length.
+	for _, size := range []int{0, 8, 32, 43, 44, 59} {
+		_, err := NewEncryptedHeaderPacket(make([]byte, size), readerSecretKey)
+		if err == nil {
+			t.Errorf("expected an error for a %d-byte payload, got nil", size)
+		}
+	}
+}
+
+func TestNewHeaderTruncatedPacket(t *testing.T) {
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A header that declares a single packet of length 8 (no payload) made the
+	// reader slice an empty buffer and panic. It must return an error instead.
+	// magic + version 1 + packet count 1 + packet{length 8, method 0}.
+	malformed, err := hex.DecodeString("6372797074346768" + "01000000" + "01000000" + "08000000" + "00000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewHeader(bytes.NewReader(malformed), readerSecretKey); err == nil {
+		t.Error("expected an error for a truncated header packet, got nil")
+	}
+}
+
+func TestNewEncryptedHeaderPacketUnknownType(t *testing.T) {
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	readerPublicKey := keys.DerivePublicKey(readerSecretKey)
+	writerPublicKey, writerSecretKey, err := keys.GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A payload that decrypts cleanly but declares a packet type that is neither
+	// DataEncryptionParameters (0) nor DataEditList (1). Without a default case
+	// this left a nil interface and nil-dereferenced on the first method call.
+	var unknownType [4]byte
+	binary.LittleEndian.PutUint32(unknownType[:], 99)
+
+	sharedKey, err := keys.GenerateWriterSharedKey(writerSecretKey, readerPublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aead, err := chacha20poly1305.New(*sharedKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nonce := make([]byte, chacha20poly1305.NonceSize)
+	if _, err := rand.Read(nonce); err != nil {
+		t.Fatal(err)
+	}
+	sealed := aead.Seal(nil, nonce, unknownType[:], nil)
+
+	payload := make([]byte, 0, chacha20poly1305.KeySize+chacha20poly1305.NonceSize+len(sealed))
+	payload = append(payload, writerPublicKey[:]...)
+	payload = append(payload, nonce...)
+	payload = append(payload, sealed...)
+
+	_, err = NewEncryptedHeaderPacket(payload, readerSecretKey)
+	var unknownErr *UnknownHeaderPacketTypeError
+	if !errors.As(err, &unknownErr) {
+		t.Errorf("expected an UnknownHeaderPacketTypeError, got %v", err)
+	}
+}
+
+// TestNewHeaderSkipsUnknownPacketType builds a header with one valid data
+// encryption parameters packet and one packet of an unknown type, both
+// encrypted to the reader. NewHeader must skip the unknown packet and return
+// only the valid one, per the spec, rather than nil-dereferencing or failing
+// the whole header.
+func TestNewHeaderSkipsUnknownPacketType(t *testing.T) {
+	readerPublicKey, readerSecretKey, err := keys.GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	writerPublicKey, writerSecretKey, err := keys.GenerateKeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// valid data encryption parameters packet, marshalled by the library
+	validPacket := HeaderPacket{
+		WriterPrivateKey:       writerSecretKey,
+		ReaderPublicKey:        readerPublicKey,
+		HeaderEncryptionMethod: X25519ChaCha20IETFPoly1305,
+		EncryptedHeaderPacket: DataEncryptionParametersHeaderPacket{
+			EncryptedSegmentSize: 65564,
+			PacketType:           PacketType{DataEncryptionParameters},
+			DataEncryptionMethod: ChaCha20IETFPoly1305,
+			DataKey:              [32]byte{},
+		},
+	}
+	validBytes, err := validPacket.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// unknown-type packet, hand-built so it decrypts but declares type 99
+	sharedKey, err := keys.GenerateWriterSharedKey(writerSecretKey, readerPublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aead, err := chacha20poly1305.New(*sharedKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var unknownType [4]byte
+	binary.LittleEndian.PutUint32(unknownType[:], 99)
+	nonce := make([]byte, chacha20poly1305.NonceSize)
+	if _, err := rand.Read(nonce); err != nil {
+		t.Fatal(err)
+	}
+	sealed := aead.Seal(nil, nonce, unknownType[:], nil)
+	body := make([]byte, 0, chacha20poly1305.KeySize+len(nonce)+len(sealed))
+	body = append(body, writerPublicKey[:]...)
+	body = append(body, nonce...)
+	body = append(body, sealed...)
+	var unknownBytes bytes.Buffer
+	_ = binary.Write(&unknownBytes, binary.LittleEndian, uint32(4+4+len(body)))
+	_ = binary.Write(&unknownBytes, binary.LittleEndian, X25519ChaCha20IETFPoly1305)
+	unknownBytes.Write(body)
+
+	var header bytes.Buffer
+	header.WriteString(MagicNumber)
+	_ = binary.Write(&header, binary.LittleEndian, Version)
+	_ = binary.Write(&header, binary.LittleEndian, uint32(2)) // two packets
+	header.Write(validBytes)
+	header.Write(unknownBytes.Bytes())
+
+	parsed, err := NewHeader(bytes.NewReader(header.Bytes()), readerSecretKey)
+	if err != nil {
+		t.Fatalf("NewHeader must skip the unknown packet, got error: %v", err)
+	}
+	if len(parsed.HeaderPackets) != 1 {
+		t.Fatalf("expected 1 packet after skipping the unknown one, got %d", len(parsed.HeaderPackets))
+	}
+	if parsed.HeaderPackets[0].EncryptedHeaderPacket.GetPacketType() != DataEncryptionParameters {
+		t.Errorf("expected the surviving packet to be DataEncryptionParameters")
+	}
+}
+
+func TestNewHeaderPacketTooShortLength(t *testing.T) {
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A PacketLength below the minimum must be rejected before make([]byte,
+	// PacketLength-8), which would otherwise underflow the uint32 (lengths 4-7)
+	// and request gigabytes. The 4-byte method is present so parsing would reach
+	// make() without the guard; asserting the guard's own message, not just any
+	// error, pins the guard instead of an incidental EOF.
+	for _, length := range []uint32{0, 3, 4, 7, 67} {
+		var packet bytes.Buffer
+		_ = binary.Write(&packet, binary.LittleEndian, length)
+		_ = binary.Write(&packet, binary.LittleEndian, X25519ChaCha20IETFPoly1305)
+		_, err := NewHeaderPacket(bytes.NewReader(packet.Bytes()), readerSecretKey)
+		if err == nil || !strings.Contains(err.Error(), "too short") {
+			t.Errorf("expected a \"too short\" error for packet length %d, got %v", length, err)
+		}
+	}
+}
+
+func TestReadHeaderTooShortPacketLength(t *testing.T) {
+	// ReadHeader must reject a short packet length before int64(packetLength-4)
+	// underflows and io.CopyN copies the rest of the stream into memory.
+	for _, length := range []uint32{0, 3, 4, 7, 67} {
+		var header bytes.Buffer
+		header.WriteString(MagicNumber)
+		_ = binary.Write(&header, binary.LittleEndian, Version)
+		_ = binary.Write(&header, binary.LittleEndian, uint32(1)) // one packet
+		_ = binary.Write(&header, binary.LittleEndian, length)
+		header.Write(make([]byte, 64)) // trailing bytes CopyN would grab without the guard
+		_, err := ReadHeader(bytes.NewReader(header.Bytes()))
+		if err == nil || !strings.Contains(err.Error(), "too short") {
+			t.Errorf("expected a \"too short\" error for packet length %d, got %v", length, err)
+		}
+	}
 }
