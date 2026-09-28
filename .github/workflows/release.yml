@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - "v*"
+  # A tag pushed by the Tag workflow uses GITHUB_TOKEN and cannot trigger this
+  # workflow by itself, so that workflow dispatches it explicitly.
+  workflow_dispatch:
 
 jobs:
   goreleaser:

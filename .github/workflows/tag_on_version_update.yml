@@ -16,6 +16,7 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: write
+            actions: write
         steps:
             - uses: actions/checkout@v7
               with:
@@ -45,3 +46,10 @@ jobs:
               env:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                 CUSTOM_TAG: "v${{steps.version.outputs.in_file}}"
+
+            # A tag pushed with GITHUB_TOKEN does not trigger release.yml on its
+            # own; workflow_dispatch is the documented exception, so start it here.
+            - name: Start the release for the new tag
+              env:
+                GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: gh workflow run release.yml --ref "v${{steps.version.outputs.in_file}}"
