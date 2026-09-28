@@ -14,4 +14,7 @@ require (
 
 require golang.org/x/sys v0.48.0 // indirect
 
-retract v1.8.7 // has a bug related to file decryption that ends up in loop.
+retract (
+	v1.15.1 // wrong tag, should have been 1.16.0
+	v1.8.7 // has a bug related to file decryption that ends up in loop.
+)
