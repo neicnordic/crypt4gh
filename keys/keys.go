@@ -337,7 +337,7 @@ func WriteCrypt4GHX25519PrivateKey(writer io.Writer, privateKey [chacha20poly130
 	if err != nil {
 		return err
 	}
-	encryptedPrivateKey := aead.Seal(nil, nonce[:], privateKey[:], nil)
+	encryptedPrivateKey := aead.Seal(nil, nonce[:], privateKey[:], nil) // #nosec G407 -- nonce is filled from crypto/rand above
 
 	buffer := bytes.NewBuffer([]byte(magic))
 	length := uint16(len(kdfName))

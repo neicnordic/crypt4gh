@@ -1483,3 +1483,21 @@ func TestReEncryptedHeaderReplacementAndAdditionFileRead(t *testing.T) {
 		t.Errorf("Unexpected data after re-encryption and del added")
 	}
 }
+
+func TestNewCrypt4GHReaderTruncatedHeader(t *testing.T) {
+	readerSecretKey, err := keys.ReadPrivateKey(strings.NewReader(crypt4ghX25519Sec), []byte("password"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A header declaring a single packet of length 8 (no payload) reached the
+	// packet parser through ReadHeader and NewHeader and panicked on an
+	// out-of-range slice. The reader must now return an error instead.
+	// magic + version 1 + packet count 1 + packet{length 8, method 0}.
+	malformed, err := hex.DecodeString("6372797074346768" + "01000000" + "01000000" + "08000000" + "00000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewCrypt4GHReader(bytes.NewReader(malformed), readerSecretKey, nil); err == nil {
+		t.Error("expected an error for a truncated header, got nil")
+	}
+}
